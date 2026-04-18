@@ -11,8 +11,17 @@ config_version=5
 [application]
 
 config/name="Esports manager mini"
+run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
+
+[autoload]
+
+GodotIQRuntime="*uid://cjw8r4s3ps8hv"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godotiq/plugin.cfg")
 
 [physics]
 
@@ -21,4 +30,3 @@ config/icon="res://icon.svg"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
-renderer/rendering_method="forward_plus"

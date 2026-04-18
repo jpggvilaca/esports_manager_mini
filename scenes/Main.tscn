@@ -1,0 +1,61 @@
+[gd_scene format=3 uid="uid://cpj2rkb5sb22n"]
+
+[ext_resource type="Script" uid="uid://ceo5i633tqbm2" path="res://scenes/Main.gd" id="1_main"]
+
+[node name="Main" type="Control" unique_id=1454868019]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=384863334]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer" unique_id=1844550936]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="WeekLabel" type="Label" parent="MarginContainer/VBox" unique_id=1007189325]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "— Week 1 —"
+horizontal_alignment = 1
+
+[node name="PlayerList" type="VBoxContainer" parent="MarginContainer/VBox" unique_id=1177800508]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="AdvanceBtn" type="Button" parent="MarginContainer/VBox" unique_id=1785344725]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "⚡  Advance Week"
+
+[node name="ResultPanel" type="PanelContainer" parent="MarginContainer/VBox" unique_id=287948519]
+visible = false
+layout_mode = 2
+
+[node name="ResultVBox" type="VBoxContainer" parent="MarginContainer/VBox/ResultPanel" unique_id=1672353645]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ResultLabel" type="Label" parent="MarginContainer/VBox/ResultPanel/ResultVBox" unique_id=1286095177]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 3
+
+[node name="DismissBtn" type="Button" parent="MarginContainer/VBox/ResultPanel/ResultVBox" unique_id=1317175955]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "— Continue —"
