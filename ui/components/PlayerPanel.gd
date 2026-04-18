@@ -1,27 +1,35 @@
-# ui/components/PlayerPanel.gd
-# UI only: displays one player + lets user pick their action.
-# Emits a signal upward — never touches GameManager directly.
 class_name PlayerPanel
 extends PanelContainer
 
 signal action_changed(player_name: String, action: String)
 
+# Action button colors
+const COLOR_SELECTED  := Color(0.20, 0.70, 0.35, 1.0)  # green — active action
+const COLOR_IDLE      := Color(0.22, 0.22, 0.25, 1.0)  # dark — inactive
+const COLOR_TEXT_ON   := Color(1.0,  1.0,  1.0,  1.0)
+const COLOR_TEXT_OFF  := Color(0.65, 0.65, 0.65, 1.0)
+
+# Stamina bar tint thresholds
+const STAMINA_WARN    := 40
+const STAMINA_COLOR_OK   := Color(0.25, 0.75, 0.40, 1.0)
+const STAMINA_COLOR_WARN := Color(0.85, 0.45, 0.10, 1.0)
+
 var _player: Player = null
 
-@onready var _name_label:     Label          = $VBox/NameLabel
-@onready var _stats_label:    Label          = $VBox/StatsLabel
-@onready var _action_buttons: HBoxContainer  = $VBox/ActionButtons
+@onready var _name_label:    Label          = $Margin/VBox/HeaderRow/NameLabel
+@onready var _trait_badge:   Label          = $Margin/VBox/HeaderRow/TraitBadge
+@onready var _skill_bar:     ProgressBar    = $Margin/VBox/BarsVBox/SkillRow/SkillBar
+@onready var _skill_val:     Label          = $Margin/VBox/BarsVBox/SkillRow/SkillVal
+@onready var _stamina_bar:   ProgressBar    = $Margin/VBox/BarsVBox/StaminaRow/StaminaBar
+@onready var _stamina_val:   Label          = $Margin/VBox/BarsVBox/StaminaRow/StaminaVal
+@onready var _focus_bar:     ProgressBar    = $Margin/VBox/BarsVBox/FocusRow/FocusBar
+@onready var _focus_val:     Label          = $Margin/VBox/BarsVBox/FocusRow/FocusVal
+@onready var _action_buttons: HBoxContainer = $Margin/VBox/ActionRow/ActionButtons
 
 
 func setup(player: Player) -> void:
 	_player = player
-	# Build buttons here so _player is guaranteed set before any press.
-	for action: String in ["train", "rest", "scrim"]:
-		var btn := Button.new()
-		btn.text = action.capitalize()
-		var captured := action
-		btn.pressed.connect(func(): _on_action_pressed(captured))
-		_action_buttons.add_child(btn)
+	_build_action_buttons()
 	_refresh_display()
 
 
@@ -29,21 +37,62 @@ func refresh() -> void:
 	_refresh_display()
 
 
-func _refresh_display() -> void:
-	_name_label.text  = "%s  [%s]  → %s" % [_player.player_name, _player.special, _player.planned_action]
-	_stats_label.text = "Skill:%d  Focus:%d  Stamina:%d  Morale:%d" % [
-		_player.skill, _player.focus, _player.stamina, _player.morale
+func _build_action_buttons() -> void:
+	var actions := [
+		{ "id": "train", "label": "⚡ Train" },
+		{ "id": "rest",  "label": "💤 Rest"  },
+		{ "id": "scrim", "label": "🎮 Scrim" },
 	]
+	for entry in actions:
+		var btn := Button.new()
+		btn.text                = entry["label"]
+		btn.custom_minimum_size = Vector2(80, 30)
+		btn.focus_mode          = Control.FOCUS_NONE
+		
+		var captured = entry["id"]
+		
+		btn.pressed.connect(func(): _on_action_pressed(captured))
+		_action_buttons.add_child(btn)
+	_highlight_action(_player.planned_action)
+
+
+func _refresh_display() -> void:
+	_name_label.text  = _player.player_name
+	_trait_badge.text = "[%s]" % _player.primary_trait
+
+	_skill_bar.value   = _player.skill
+	_skill_val.text    = str(_player.skill)
+
+	_stamina_bar.value = _player.stamina
+	_stamina_val.text  = str(_player.stamina)
+	# Tint stamina bar orange when critically low
+	var stamina_color := STAMINA_COLOR_WARN if _player.stamina < STAMINA_WARN else STAMINA_COLOR_OK
+	_stamina_bar.modulate = stamina_color
+
+	_focus_bar.value   = _player.focus
+	_focus_val.text    = str(_player.focus)
+
+	_highlight_action(_player.planned_action)
 
 
 func _on_action_pressed(action: String) -> void:
 	_player.planned_action = action
 	emit_signal("action_changed", _player.player_name, action)
-	_refresh_display() # update the name label to show queued action immediately
+	_highlight_action(action)
 
-	# Reset all highlights, then mark the selected button yellow.
-	for btn: Button in _action_buttons.get_children():
-		btn.modulate = Color.WHITE
-	for btn: Button in _action_buttons.get_children():
-		if btn.text.to_lower() == action:
-			btn.modulate = Color.YELLOW
+
+func _highlight_action(action: String) -> void:
+	if _action_buttons == null:
+		return
+		
+	var action_ids := ["train", "rest", "scrim"]
+	var buttons    := _action_buttons.get_children()
+	
+	for i in buttons.size():
+		var btn: Button = buttons[i]
+		var is_selected = action_ids[i] == action
+		
+		# Style the button background via modulate — simple, no theme needed
+		btn.modulate     = COLOR_SELECTED if is_selected else COLOR_IDLE
+		btn.add_theme_color_override("font_color",
+			COLOR_TEXT_ON if is_selected else COLOR_TEXT_OFF)
