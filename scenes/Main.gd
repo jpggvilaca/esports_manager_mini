@@ -132,6 +132,11 @@ func _show_result(result: Dictionary) -> void:
 			_make_result_row(entry["player"], entry, entry["score"] == mvp_score)
 		)
 
+	# Level-up banners — shown at the bottom of the player list
+	for lu in result.get("level_ups", []):
+		var banner := _make_level_up_banner(lu)
+		_player_results.add_child(banner)
+
 	_result_overlay.show()
 
 
@@ -148,7 +153,7 @@ func _make_result_row(p: Player, entry: Dictionary, is_mvp: bool) -> PanelContai
 	vbox.add_theme_constant_override("separation", 2)
 	margin.add_child(vbox)
 
-	# Header row: name + MVP badge + performance label
+	# Header row: name + level badge + MVP badge + performance label
 	var header := HBoxContainer.new()
 	vbox.add_child(header)
 
@@ -159,6 +164,13 @@ func _make_result_row(p: Player, entry: Dictionary, is_mvp: bool) -> PanelContai
 	if is_mvp:
 		name_lbl.add_theme_color_override("font_color", COLOR_MVP)
 	header.add_child(name_lbl)
+
+	# Level badge
+	var level_lbl := Label.new()
+	level_lbl.text = GameText.LEVEL_BADGE % entry.get("level", p.level)
+	level_lbl.add_theme_font_size_override("font_size", 11)
+	level_lbl.add_theme_color_override("font_color", Color(0.55, 0.80, 1.0, 1.0))
+	header.add_child(level_lbl)
 
 	if is_mvp:
 		var badge := Label.new()
@@ -180,6 +192,25 @@ func _make_result_row(p: Player, entry: Dictionary, is_mvp: bool) -> PanelContai
 	flavor.autowrap_mode = TextServer.AUTOWRAP_WORD
 	vbox.add_child(flavor)
 
+	# XP bar row
+	var xp_row := HBoxContainer.new()
+	xp_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(xp_row)
+
+	var xp_lbl := Label.new()
+	xp_lbl.text = GameText.XP_GAINED % entry.get("xp_gained", 0)
+	xp_lbl.add_theme_font_size_override("font_size", 11)
+	xp_lbl.add_theme_color_override("font_color", Color(0.55, 0.90, 0.60, 1.0))
+	xp_row.add_child(xp_lbl)
+
+	var xp_bar := ProgressBar.new()
+	xp_bar.max_value       = 1.0
+	xp_bar.value          = entry.get("xp_progress", LevelSystem.level_progress(p))
+	xp_bar.show_percentage = false
+	xp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	xp_bar.custom_minimum_size   = Vector2(0, 8)
+	xp_row.add_child(xp_bar)
+
 	# Footer: score + trait + streak
 	var streak_hint: String = ""
 	if p.win_streak >= 3:    streak_hint = "  · " + GameText.STREAK_ON_ROLL
@@ -190,5 +221,35 @@ func _make_result_row(p: Player, entry: Dictionary, is_mvp: bool) -> PanelContai
 	footer.add_theme_font_size_override("font_size", 11)
 	footer.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 1.0))
 	vbox.add_child(footer)
+
+	return card
+
+
+# Level-up banner — shown once per level-up event at the bottom of results.
+func _make_level_up_banner(lu: Dictionary) -> PanelContainer:
+	var card   := PanelContainer.new()
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left",   12)
+	margin.add_theme_constant_override("margin_right",  12)
+	margin.add_theme_constant_override("margin_top",    8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	card.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	margin.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "%s  %s" % [lu["player_name"], GameText.LEVEL_UP % lu["new_level"]]
+	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_color_override("font_color", Color(0.40, 1.0, 0.60, 1.0))
+	vbox.add_child(title)
+
+	var focus_part: String = "  Focus +%d" % lu["focus_gain"] if lu["focus_gain"] > 0 else ""
+	var stat_lbl := Label.new()
+	stat_lbl.text = GameText.LEVEL_UP_STATS % [lu["skill_gain"], focus_part]
+	stat_lbl.add_theme_font_size_override("font_size", 12)
+	stat_lbl.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7, 1.0))
+	vbox.add_child(stat_lbl)
 
 	return card

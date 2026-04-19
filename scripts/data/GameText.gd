@@ -83,6 +83,12 @@ const REWARD_PREFIX:  String = "📈 "
 # --- MVP badge ---
 const MVP_BADGE: String = "⭐ MVP"
 
+# --- XP & Level ---
+const XP_GAINED:    String = "+%d XP"
+const LEVEL_UP:     String = "⬆ Level %d!"
+const LEVEL_UP_STATS: String = "Skill +%d%s"  # %s = "  Focus +1" or ""
+const LEVEL_BADGE:  String = "Lv.%d"
+
 
 # --- Flavor text pools ---
 # Each entry is an Array so you can add more lines freely.

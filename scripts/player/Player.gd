@@ -21,6 +21,11 @@ var win_streak: int      = 0   # consecutive wins (+) or losses (-)
 var skill_delta: int     = 0   # skill change this week (for micro-reward display)
 var stamina_delta: int   = 0   # stamina change this week
 
+# --- XP & Levelling (written by LevelSystem, read by UI) ---
+var xp: int              = 0   # current XP within this level
+var level: int           = 1   # current level (starts at 1)
+var xp_delta: int        = 0   # XP gained this week (reset each week)
+
 
 func _init(
 	p_name: String,

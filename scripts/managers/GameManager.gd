@@ -71,6 +71,7 @@ func apply_actions() -> void:
 	for player: Player in players:
 		var prev_skill:   int = player.skill
 		var prev_stamina: int = player.stamina
+		player.xp_delta = 0  # reset for this week
 
 		match player.planned_action:
 			"train":
@@ -92,6 +93,9 @@ func apply_actions() -> void:
 			"scrim":
 				player.focus = min(player.focus + 4, 100)
 
+		# Award action XP (train/scrim only; rest gives 0)
+		LevelSystem.award_action_xp(player, player.planned_action)
+
 		player.skill_delta   = player.skill   - prev_skill
 		player.stamina_delta = player.stamina - prev_stamina
 		player.planned_action = "rest"
@@ -102,8 +106,6 @@ func run_match() -> Dictionary:
 	var match_type: String = entry["type"]
 	var is_important: bool = match_type != Calendar.TYPE_NORMAL
 
-	# Calendar sets the base. Tight variance (±10) keeps near-misses common.
-	# Tournament adds extra pressure: wider swing (±18).
 	var variance: int
 	if match_type == Calendar.TYPE_TOURNAMENT:
 		variance = randi_range(-18, 18)
@@ -113,9 +115,17 @@ func run_match() -> Dictionary:
 	var opponent_score: int = entry["opponent"] + variance
 	var result: Dictionary  = Simulation.simulate_team(players, is_important, opponent_score)
 
+	# Award match XP and collect any level-ups
+	var all_level_ups: Array = []
 	for entry2 in result["players"]:
-		var p: Player = entry2["player"]
-		p.last_score  = entry2["score"]
+		var p: Player    = entry2["player"]
+		p.last_score     = entry2["score"]
+		var lvl_ups: Array = LevelSystem.award_match_xp(p, entry2["label"], match_type)
+		all_level_ups.append_array(lvl_ups)
+		# xp_delta was set by action XP earlier; add match XP on top
+		entry2["xp_gained"] = p.xp_delta
+		entry2["level"]     = p.level
+		entry2["xp_progress"] = LevelSystem.level_progress(p)
 
 	result["is_important"] = is_important
 	result["match_type"]   = match_type
@@ -125,6 +135,7 @@ func run_match() -> Dictionary:
 	result["opp_strength"] = entry["label"]
 	result["streak"]       = team_win_streak
 	result["game_over"]    = Calendar.is_game_over(week + 1)
+	result["level_ups"]    = all_level_ups
 	return result
 
 
