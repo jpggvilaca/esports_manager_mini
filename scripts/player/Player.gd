@@ -3,28 +3,23 @@
 class_name Player
 extends RefCounted
 
-# Primary traits (strong effect on simulation):
-#   "clutch"     — bonus on important matches, slight variance in normal
-#   "choker"     — penalty on important matches, slight boost on normal
-#   "grinder"    — faster skill gain, more stamina cost on train
-#   "lazy"       — slower skill gain, faster stamina recovery on rest
-#   "consistent" — reduced randomness
-#   "volatile"   — increased randomness
-#   "none"       — no effect
-
-# Minor traits (small modifiers, optional):
-#   "resilient"  — halved stamina penalty in simulation
-#   "fragile"    — stamina penalty kicks in earlier (below 50, not 40)
-#   "none"
+# Primary traits: clutch | choker | grinder | lazy | consistent | volatile | none
+# Minor traits:  resilient | fragile | none
 
 var player_name: String
 var skill: int
 var focus: int
 var stamina: int
 var morale: int
-var primary_trait: String  # see above
-var minor_trait: String    # see above
-var planned_action: String # "train" | "rest" | "scrim"
+var primary_trait: String
+var minor_trait: String
+var planned_action: String
+
+# --- Progression tracking (read by UI and FlavorGenerator, written by GameManager) ---
+var last_score: int      = 0   # score from previous match
+var win_streak: int      = 0   # consecutive wins (+) or losses (-)
+var skill_delta: int     = 0   # skill change this week (for micro-reward display)
+var stamina_delta: int   = 0   # stamina change this week
 
 
 func _init(

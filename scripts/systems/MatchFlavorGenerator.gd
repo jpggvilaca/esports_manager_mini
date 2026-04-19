@@ -1,68 +1,49 @@
 # scripts/systems/MatchFlavorGenerator.gd
-# Pure logic. Takes a player + score + context, returns label + flavor text.
-# No UI references. No state.
+# Pure logic. No UI references. No loose strings — all text via GameText.
 class_name MatchFlavorGenerator
 extends RefCounted
 
-# Thresholds — tweak here to rebalance labels without touching logic
 const HIGH_SCORE: int = 75
 const LOW_SCORE:  int = 50
 
 
 # Returns { "label": String, "flavor": String }
 static func generate(player: Player, score: int, is_important: bool) -> Dictionary:
-	var label:  String = _get_label(score)
-	var flavor: String = _get_flavor(player, score, is_important)
-	return { "label": label, "flavor": flavor }
+	return {
+		"label":  _get_label(score),
+		"flavor": _get_flavor(player, score, is_important),
+	}
 
 
 static func _get_label(score: int) -> String:
-	if score >= HIGH_SCORE:   return "🔥 Carried"
-	elif score >= LOW_SCORE:  return "✅ Solid"
-	else:                     return "😬 Struggled"
+	if score >= HIGH_SCORE:  return GameText.PERF_LABELS[2]
+	elif score >= LOW_SCORE: return GameText.PERF_LABELS[1]
+	else:                    return GameText.PERF_LABELS[0]
 
 
 static func _get_flavor(player: Player, score: int, is_important: bool) -> String:
-	var is_high: bool = score >= HIGH_SCORE
-	var is_low:  bool = score < LOW_SCORE
+	var is_high:        bool = score >= HIGH_SCORE
+	var is_low:         bool = score < LOW_SCORE
+	var win_streak:     bool = player.win_streak >= 2
+	var loss_streak:    bool = player.win_streak <= -2
+	var t:              String = player.primary_trait
 
-	match player.primary_trait:
+	# Resolve situation key — most specific first
+	if is_important:
+		if is_high: return GameText.flavor(t, "important_high_streak" if win_streak  else "important_high")
+		if is_low:  return GameText.flavor(t, "important_low_streak"  if loss_streak else "important_low")
+	else:
+		if is_high and t == "choker": return GameText.flavor(t, "normal_high")
 
-		"clutch":
-			if is_important and is_high:  return "Delivered under pressure."
-			if is_important and is_low:   return "Couldn't step up when it mattered."
-			if is_high:                   return "Carried key moments."
-			if is_low:                    return "Had a rough match."
-			return "Played a steady game."
+	if is_high: return GameText.flavor(t, "high_streak" if win_streak else "high")
+	if is_low:  return GameText.flavor(t, "low_streak"  if loss_streak else "low")
+	return GameText.flavor(t, "mid")
 
-		"choker":
-			if is_important and is_low:   return "Collapsed under pressure."
-			if is_important and is_high:  return "Managed to hold it together."
-			if not is_important and is_high: return "Looked more comfortable than usual."
-			if is_low:                    return "Struggled to keep up."
-			return "Contributed consistently."
 
-		"grinder":
-			if is_high:   return "Hard work paid off."
-			if not is_low: return "Reliable as always."
-			return "Even grinding couldn't save today."
-
-		"lazy":
-			if is_low:    return "Looked unprepared."
-			if is_high:   return "Seemed refreshed — and it showed."
-			return "Did just enough to get by."
-
-		"consistent":
-			if is_high:   return "Dominated the match."
-			if is_low:    return "Even consistency has its limits."
-			return "Steady and dependable as expected."
-
-		"volatile":
-			if is_high:   return "Unpredictable — but brilliant today."
-			if is_low:    return "Unpredictable — and it backfired."
-			return "Unpredictable performance today."
-
-	# Fallback for "none" or unknown traits
-	if is_high:   return "Dominated the match."
-	if is_low:    return "Had a rough match."
-	return "Played a steady game."
+# Micro-reward note shown after match — all strings from GameText.
+static func get_improvement_note(player: Player) -> String:
+	if player.skill_delta > 0:
+		return GameText.REWARD_SKILL % [player.player_name, player.skill_delta]
+	if player.stamina_delta > 10:
+		return GameText.REWARD_STAMINA % [player.player_name, player.stamina_delta]
+	return ""

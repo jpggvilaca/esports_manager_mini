@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://ui/components/PlayerPanel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://ui/components/PlayerStatBars.tscn" id="2_bars"]
 
 [node name="PlayerPanel" type="PanelContainer"]
 script = ExtResource("1_panel")
@@ -29,78 +30,8 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.6, 0.85, 1.0, 1.0)
 
-[node name="BarsVBox" type="VBoxContainer" parent="Margin/VBox"]
+[node name="StatBars" parent="Margin/VBox" instance=ExtResource("2_bars")]
 layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="SkillRow" type="HBoxContainer" parent="Margin/VBox/BarsVBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="SkillLbl" type="Label" parent="Margin/VBox/BarsVBox/SkillRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(60, 0)
-theme_override_font_sizes/font_size = 12
-text = "Skill"
-
-[node name="SkillBar" type="ProgressBar" parent="Margin/VBox/BarsVBox/SkillRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 14)
-max_value = 100.0
-show_percentage = false
-
-[node name="SkillVal" type="Label" parent="Margin/VBox/BarsVBox/SkillRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(28, 0)
-theme_override_font_sizes/font_size = 12
-horizontal_alignment = 2
-
-[node name="StaminaRow" type="HBoxContainer" parent="Margin/VBox/BarsVBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="StaminaLbl" type="Label" parent="Margin/VBox/BarsVBox/StaminaRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(60, 0)
-theme_override_font_sizes/font_size = 12
-text = "Stamina"
-
-[node name="StaminaBar" type="ProgressBar" parent="Margin/VBox/BarsVBox/StaminaRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 14)
-max_value = 100.0
-show_percentage = false
-
-[node name="StaminaVal" type="Label" parent="Margin/VBox/BarsVBox/StaminaRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(28, 0)
-theme_override_font_sizes/font_size = 12
-horizontal_alignment = 2
-
-[node name="FocusRow" type="HBoxContainer" parent="Margin/VBox/BarsVBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="FocusLbl" type="Label" parent="Margin/VBox/BarsVBox/FocusRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(60, 0)
-theme_override_font_sizes/font_size = 12
-text = "Focus"
-
-[node name="FocusBar" type="ProgressBar" parent="Margin/VBox/BarsVBox/FocusRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 14)
-max_value = 100.0
-show_percentage = false
-
-[node name="FocusVal" type="Label" parent="Margin/VBox/BarsVBox/FocusRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(28, 0)
-theme_override_font_sizes/font_size = 12
-horizontal_alignment = 2
 
 [node name="ActionRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
