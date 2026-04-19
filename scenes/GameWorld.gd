@@ -7,15 +7,16 @@ const MANAGEMENT_SCENE := preload("res://scenes/Main.tscn")
 
 var _management: Control = null
 
-@onready var _week_label: Label = $UI/WeekLabel
+@onready var _ui:         CanvasLayer = $UI
+@onready var _week_label: Label       = $UI/WeekLabel
 
 
 func _ready() -> void:
 	$UI/ManageBtn.pressed.connect(_on_manage_pressed)
 
 
-func set_week(week: int) -> void:
-	_week_label.text = "Week %d" % week
+func set_week(week: int, season: int) -> void:
+	_week_label.text = "S%d · W%d" % [season, week]
 
 
 func _on_manage_pressed() -> void:
@@ -23,13 +24,14 @@ func _on_manage_pressed() -> void:
 		_management = MANAGEMENT_SCENE.instantiate()
 		get_tree().root.add_child(_management)
 		_management.tree_exiting.connect(func(): _management = null)
-		if not _management.is_connected("return_to_world", _on_return_from_management):
-			_management.return_to_world.connect(_on_return_from_management)
+		_management.return_to_world.connect(_on_return_from_management)
+
+	# Hide the CanvasLayer so it doesn't render over the management screen.
+	_ui.hide()
 	_management.show()
-	hide()
 
 
-func _on_return_from_management(week: int) -> void:
-	set_week(week)
-	show()
+func _on_return_from_management(week: int, season: int) -> void:
+	set_week(week, season)
+	_ui.show()
 	_management.hide()

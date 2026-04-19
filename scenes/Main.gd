@@ -2,7 +2,7 @@
 # Management screen. Wires UI to GameManager. No game logic.
 extends Control
 
-signal return_to_world(week: int)
+signal return_to_world(week: int, season: int)
 
 const PLAYER_PANEL_SCENE := preload("res://ui/components/PlayerPanel.tscn")
 
@@ -31,7 +31,7 @@ func _ready() -> void:
 	_result_overlay.hide()
 	_advance_btn.pressed.connect(_on_advance_pressed)
 	_dismiss_btn.pressed.connect(_on_dismiss_pressed)
-	_back_btn.pressed.connect(func(): emit_signal("return_to_world", _game.week))
+	_back_btn.pressed.connect(func(): emit_signal("return_to_world", _game.week_in_season, _game.season))
 	_build_player_panels()
 	_refresh_prematch()
 
@@ -47,8 +47,10 @@ func _refresh_prematch() -> void:
 	var ctx: Dictionary = _game.get_prematch_context()
 
 	var context_parts: PackedStringArray = []
+	# Match type is always first — it's the most important piece of context.
+	context_parts.append(ctx["type_label"])
+
 	if ctx["is_important"]:
-		context_parts.append(GameText.MATCH_IMPORTANT)
 		_match_context_lbl.add_theme_color_override("font_color", COLOR_IMPORTANT)
 	else:
 		_match_context_lbl.remove_theme_color_override("font_color")
@@ -59,6 +61,9 @@ func _refresh_prematch() -> void:
 		context_parts.append(GameText.STREAK_WIN_PREFIX % ctx["streak"])
 	elif ctx["streak"] <= -2:
 		context_parts.append(GameText.STREAK_LOSS_PREFIX % absi(ctx["streak"]))
+
+	if ctx.get("game_over", false):
+		context_parts.append("(Final season reached)")
 
 	_match_context_lbl.text = "  ·  ".join(context_parts)
 
@@ -77,6 +82,10 @@ func _on_advance_pressed() -> void:
 		_show_result(result)
 	else:
 		_show_rest_summary()
+	# Lock permanently if game is over after this week
+	if result.get("game_over", false):
+		_advance_btn.text = "Season limit reached"
+		_advance_btn.disabled = true
 
 
 func _on_dismiss_pressed() -> void:
@@ -106,7 +115,9 @@ func _show_result(result: Dictionary) -> void:
 		_outcome_label.text = GameText.OUTCOME_DEFEAT + close
 		_outcome_label.add_theme_color_override("font_color", COLOR_DEFEAT)
 
-	_score_label.text = GameText.MATCH_SCORE_LINE % [result["team_score"], result["opponent_score"]]
+	# Show match type below outcome so it reads: "VICTORY\nTournament"
+	var type_suffix: String = result.get("type_label", "")
+	_score_label.text = type_suffix + "\n" + GameText.MATCH_SCORE_LINE % [result["team_score"], result["opponent_score"]]
 
 	for child in _player_results.get_children():
 		child.queue_free()

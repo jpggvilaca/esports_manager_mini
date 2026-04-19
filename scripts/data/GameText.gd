@@ -66,6 +66,13 @@ const MATCH_IMPORTANT:     String = "🏆 IMPORTANT MATCH"
 const MATCH_SCORE_LINE:    String = "Your team  %d pts   vs   Enemy  %d pts"
 const MATCH_OPP_PREFIX:    String = "Opponent: %s"
 
+# --- Match type labels (Calendar) ---
+const MATCH_TYPE: Dictionary = {
+	"normal":     "Regular Match",
+	"important":  "⭐ Important Match",
+	"tournament": "🏆 Tournament",
+}
+
 
 # --- Micro reward templates ---
 const REWARD_SKILL:   String = "%s improved (Skill +%d)"

@@ -3,12 +3,16 @@
 class_name GameManager
 extends RefCounted
 
-const OPPONENT_BASE_SCORE: int = 160  # lower base — near-misses more common early
-
-var players: Array     = []
-var week: int          = 1
-var is_important: bool = false
+var players: Array       = []
+var week: int            = 1  # absolute week number across all seasons
 var team_win_streak: int = 0  # positive = wins, negative = losses
+
+# Convenience getters — read only, derived from week.
+var season: int:      get = _get_season
+var week_in_season: int: get = _get_week_in_season
+
+func _get_season() -> int:        return Calendar.get_season(week)
+func _get_week_in_season() -> int: return Calendar.get_week_in_season(week)
 
 
 func _init() -> void:
@@ -20,42 +24,27 @@ func _init() -> void:
 
 
 func advance_week() -> Dictionary:
-	# Capture whether a match should happen BEFORE apply_actions resets planned_action.
-	var has_match: bool = _team_has_active_action()
+	# Read planned actions BEFORE apply_actions resets them.
+	var has_match: bool    = _team_has_active_action()
 	apply_actions()
+
 	var result: Dictionary = {}
 	if has_match:
 		result = run_match()
 		_update_streaks(result["won"])
 	else:
 		result = { "has_match": false }
+
 	week += 1
 	return result
 
 
-# Returns true if at least one player trained or scrimed this week.
-# Pure rest weeks (everyone on "rest") skip match simulation.
-func _team_has_active_action() -> bool:
-	for player: Player in players:
-		if player.planned_action == "train" or player.planned_action == "scrim":
-			return true
-	return false
-
-
-# Returns pre-match context for UI to show BEFORE the player clicks Advance.
+# Pre-match context — read by UI before the player clicks Advance.
 func get_prematch_context() -> Dictionary:
-	# Important every 4th week
-	is_important = (week % 4 == 0)
+	var entry: Dictionary  = Calendar.get_week(week)
+	var match_type: String = entry["type"]
+	var is_important: bool = match_type != Calendar.TYPE_NORMAL
 
-	# Opponent strength label based on scaled score
-	var opp: int     = _opponent_score_this_week()
-	var strength: String
-	if opp < 170:   strength = GameText.OPPONENT_STRENGTH["weak"]
-	elif opp < 190: strength = GameText.OPPONENT_STRENGTH["average"]
-	elif opp < 210: strength = GameText.OPPONENT_STRENGTH["strong"]
-	else:           strength = GameText.OPPONENT_STRENGTH["dominant"]
-
-	# Player condition labels
 	var conditions: Array = []
 	for player: Player in players:
 		var cond: String
@@ -66,11 +55,15 @@ func get_prematch_context() -> Dictionary:
 		conditions.append({ "name": player.player_name, "condition": cond })
 
 	return {
-		"week":        week,
-		"is_important": is_important,
-		"opp_strength": strength,
-		"conditions":  conditions,
-		"streak":      team_win_streak,
+		"week":          week_in_season,
+		"season":        season,
+		"match_type":    match_type,
+		"type_label":    GameText.MATCH_TYPE[match_type],
+		"is_important":  is_important,
+		"opp_strength":  entry["label"],
+		"conditions":    conditions,
+		"streak":        team_win_streak,
+		"game_over":     Calendar.is_game_over(week),
 	}
 
 
@@ -97,45 +90,49 @@ func apply_actions() -> void:
 				player.stamina = min(player.stamina + stamina_gain, 100)
 				player.morale  = min(player.morale + 5, 100)
 			"scrim":
-				# Scrim = practice matches. Builds game sense (focus), not raw mechanics (skill).
-				# No stamina cost — it's controlled practice, not grind.
 				player.focus = min(player.focus + 4, 100)
 
-		# Track deltas for micro-reward display
 		player.skill_delta   = player.skill   - prev_skill
 		player.stamina_delta = player.stamina - prev_stamina
 		player.planned_action = "rest"
 
 
 func run_match() -> Dictionary:
-	var opponent_score: int = _opponent_score_this_week()
+	var entry: Dictionary  = Calendar.get_week(week)
+	var match_type: String = entry["type"]
+	var is_important: bool = match_type != Calendar.TYPE_NORMAL
+
+	# Calendar sets the base. Tight variance (±10) keeps near-misses common.
+	# Tournament adds extra pressure: wider swing (±18).
+	var variance: int
+	if match_type == Calendar.TYPE_TOURNAMENT:
+		variance = randi_range(-18, 18)
+	else:
+		variance = randi_range(-10, 10)
+
+	var opponent_score: int = entry["opponent"] + variance
 	var result: Dictionary  = Simulation.simulate_team(players, is_important, opponent_score)
 
-	# Write last_score back into each player for streak/identity tracking
-	for entry in result["players"]:
-		var p: Player    = entry["player"]
-		p.last_score     = entry["score"]
+	for entry2 in result["players"]:
+		var p: Player = entry2["player"]
+		p.last_score  = entry2["score"]
 
-	result["is_important"]  = is_important
-	result["week"]          = week
-	result["opp_strength"]  = _opponent_label(opponent_score)
-	result["streak"]        = team_win_streak
+	result["is_important"] = is_important
+	result["match_type"]   = match_type
+	result["type_label"]   = GameText.MATCH_TYPE[match_type]
+	result["week"]         = week_in_season
+	result["season"]       = season
+	result["opp_strength"] = entry["label"]
+	result["streak"]       = team_win_streak
+	result["game_over"]    = Calendar.is_game_over(week + 1)
 	return result
 
 
-# Opponent scales with weeks — creates genuine difficulty ramp.
-# Near-miss tuning: variance is tight (±12) so results cluster near the threshold.
-func _opponent_score_this_week() -> int:
-	var ramp: int     = week * 3               # grows 3pts per week
-	var variance: int = randi_range(-12, 12)   # tight band → near misses
-	return OPPONENT_BASE_SCORE + ramp + variance
-
-
-func _opponent_label(score: int) -> String:
-	if score < 170:   return GameText.OPPONENT_STRENGTH["weak"]
-	elif score < 190: return GameText.OPPONENT_STRENGTH["average"]
-	elif score < 210: return GameText.OPPONENT_STRENGTH["strong"]
-	else:             return GameText.OPPONENT_STRENGTH["dominant"]
+func _team_has_active_action() -> bool:
+	for player: Player in players:
+		if player.planned_action == "train" or player.planned_action == "scrim":
+			return true
+	return false
 
 
 func _update_streaks(won: bool) -> void:
