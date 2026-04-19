@@ -56,8 +56,6 @@ func _on_action_pressed(action: String) -> void:
 
 
 func _highlight_action(action: String) -> void:
-	if _action_buttons == null:
-		return
 	var action_ids := ["train", "rest", "scrim"]
 	var buttons    := _action_buttons.get_children()
 	for i in buttons.size():

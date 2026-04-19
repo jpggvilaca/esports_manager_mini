@@ -1,5 +1,3 @@
-# scripts/systems/MatchFlavorGenerator.gd
-# Pure logic. No UI references. No loose strings — all text via GameText.
 class_name MatchFlavorGenerator
 extends RefCounted
 
@@ -37,13 +35,5 @@ static func _get_flavor(player: Player, score: int, is_important: bool) -> Strin
 
 	if is_high: return GameText.flavor(t, "high_streak" if win_streak else "high")
 	if is_low:  return GameText.flavor(t, "low_streak"  if loss_streak else "low")
+	
 	return GameText.flavor(t, "mid")
-
-
-# Micro-reward note shown after match — all strings from GameText.
-static func get_improvement_note(player: Player) -> String:
-	if player.skill_delta > 0:
-		return GameText.REWARD_SKILL % [player.player_name, player.skill_delta]
-	if player.stamina_delta > 10:
-		return GameText.REWARD_STAMINA % [player.player_name, player.stamina_delta]
-	return ""

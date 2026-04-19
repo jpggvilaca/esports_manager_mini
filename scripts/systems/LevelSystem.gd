@@ -1,6 +1,3 @@
-# scripts/systems/LevelSystem.gd
-# Pure logic. No UI, no scene references. All XP/level constants live here.
-# To tune progression: edit the constants. Nothing else needs to change.
 class_name LevelSystem
 extends RefCounted
 
@@ -38,7 +35,7 @@ const LEVEL_THRESHOLDS: Array[int] = [
 	710,  # Level 9 → 10
 ]
 
-const MAX_LEVEL: int = 10  # matches LEVEL_THRESHOLDS.size() - 1
+const MAX_LEVEL: int = 10  # level cap — must equal LEVEL_THRESHOLDS.size() - 1 to avoid OOB reads
 
 # --- Stat bonuses granted on level up ---
 const LEVEL_UP_SKILL_BONUS: int = 2   # always granted
@@ -51,17 +48,21 @@ static func award_match_xp(player: Player, perf_label: String, match_type: Strin
 	var base_xp: int = _xp_for_label(perf_label)
 	var mult: float  = XP_MULT.get(match_type, 1.0)
 	var gained: int  = int(base_xp * mult)
+	
 	return _apply_xp(player, gained)
 
 
 # Award action XP (train/scrim). Returns list of level-up dicts (rare but possible).
 static func award_action_xp(player: Player, action: String) -> Array:
 	var gained: int = 0
+	
 	match action:
 		"train": gained = XP_TRAIN
 		"scrim": gained = XP_SCRIM
+		
 	if gained == 0:
 		return []
+		
 	return _apply_xp(player, gained)
 
 
@@ -69,6 +70,7 @@ static func award_action_xp(player: Player, action: String) -> Array:
 static func xp_to_next_level(player: Player) -> int:
 	if player.level >= MAX_LEVEL:
 		return -1
+		
 	return LEVEL_THRESHOLDS[player.level] - player.xp
 
 
@@ -76,7 +78,9 @@ static func xp_to_next_level(player: Player) -> int:
 static func level_progress(player: Player) -> float:
 	if player.level >= MAX_LEVEL:
 		return 1.0
+		
 	var threshold: int = LEVEL_THRESHOLDS[player.level]
+	
 	return clampf(float(player.xp) / float(threshold), 0.0, 1.0)
 
 
@@ -85,19 +89,22 @@ static func level_progress(player: Player) -> float:
 static func _xp_for_label(label: String) -> int:
 	if "Carried" in label:   return XP_CARRIED
 	if "Solid"   in label:   return XP_SOLID
+	
 	return XP_STRUGGLED
 
 
 static func _apply_xp(player: Player, amount: int) -> Array:
 	player.xp      += amount
-	player.xp_delta = amount   # for display this week
+	player.xp_delta += amount  # accumulate — action XP may have already been set
 	var level_ups: Array = []
 
 	# Process level-ups one at a time (could gain multiple in one step theoretically)
 	while player.level < MAX_LEVEL:
 		var threshold: int = LEVEL_THRESHOLDS[player.level]
+		
 		if player.xp < threshold:
 			break
+			
 		player.xp    -= threshold
 		player.level += 1
 

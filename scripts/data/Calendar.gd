@@ -1,17 +1,11 @@
-# scripts/data/Calendar.gd
-# Season calendar — pure data + lookup logic. No UI, no game state.
-#
 # Structure:
 #   - One season = WEEKS_PER_SEASON weeks, repeating the same template.
 #   - Difficulty scales each season via a per-season multiplier.
 #   - MAX_SEASONS caps how long the game runs (set to -1 for infinite).
-#
-# To tune: change WEEKS_PER_SEASON, MAX_SEASONS, or the WEEK_TEMPLATE entries.
-# To add a new week pattern: add an entry to WEEK_TEMPLATE.
+
 class_name Calendar
 extends RefCounted
 
-# --- Configuration (edit these freely) ---
 const WEEKS_PER_SEASON: int = 24   # weeks in one full season
 const MAX_SEASONS:      int = 10   # -1 = infinite
 # How much harder each season gets (multiplied onto opponent base score).
@@ -33,7 +27,7 @@ const TYPE_TOURNAMENT: String = "tournament"
 #   Weeks  7–12: Mid-season (medium difficulty, second tournament)
 #   Weeks 13–18: Late season (hard, third important)
 #   Weeks 19–24: Season finale (very hard, two tournaments)
-const WEEK_TEMPLATE: Array[Dictionary] = [
+const WEEK_TEMPLATE: Array = [
 	# Block 1 — Early grind
 	{ "type": TYPE_NORMAL,     "opponent": 145, "label": "weak"     },  #  1
 	{ "type": TYPE_NORMAL,     "opponent": 150, "label": "weak"     },  #  2

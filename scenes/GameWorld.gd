@@ -13,6 +13,8 @@ var _management: Control = null
 
 func _ready() -> void:
 	$UI/ManageBtn.pressed.connect(_on_manage_pressed)
+	# Week label shows the tscn default ("Week 1") until management returns.
+	# If save/load is added later, initialise the label here from saved state.
 
 
 func set_week(week: int, season: int) -> void:

@@ -56,7 +56,7 @@ static func simulate_player(player: Player, is_important: bool) -> int:
 # Returns the full structured result dict consumed by GameManager and displayed by Main.
 # { "won": bool, "team_score": int, "opponent_score": int, "week": int (set by GM),
 #   "players": [ { "player": Player, "score": int, "label": String, "flavor": String } ] }
-static func simulate_team(players: Array, is_important: bool, opponent_score: int) -> Dictionary:
+static func simulate_team(players: Array[Player], is_important: bool, opponent_score: int) -> Dictionary:
 	var player_results: Array = []
 	var team_score: int = 0
 

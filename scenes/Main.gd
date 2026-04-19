@@ -4,11 +4,12 @@ extends Control
 
 signal return_to_world(week: int, season: int)
 
-const PLAYER_PANEL_SCENE := preload("res://ui/components/PlayerPanel.tscn")
+const PLAYER_PANEL_SCENE   := preload("res://ui/components/PlayerPanel.tscn")
+const RESULT_ROW_SCENE     := preload("res://ui/components/ResultRow.tscn")
+const LEVEL_UP_BANNER_SCENE := preload("res://ui/components/LevelUpBanner.tscn")
 
 const COLOR_VICTORY   := Color(0.20, 0.85, 0.40, 1.0)
 const COLOR_DEFEAT    := Color(0.90, 0.25, 0.25, 1.0)
-const COLOR_MVP       := Color(1.0,  0.85, 0.20, 1.0)
 const COLOR_IMPORTANT := Color(1.0,  0.65, 0.15, 1.0)
 const COLOR_REST      := Color(0.60, 0.60, 0.80, 1.0)
 
@@ -31,23 +32,22 @@ func _ready() -> void:
 	_result_overlay.hide()
 	_advance_btn.pressed.connect(_on_advance_pressed)
 	_dismiss_btn.pressed.connect(_on_dismiss_pressed)
-	_back_btn.pressed.connect(func(): emit_signal("return_to_world", _game.week_in_season, _game.season))
+	_back_btn.pressed.connect(func(): return_to_world.emit(_game.week_in_season, _game.season))
 	_build_player_panels()
 	_refresh_prematch()
 
 
 func _build_player_panels() -> void:
 	for player: Player in _game.players:
-		var panel := PLAYER_PANEL_SCENE.instantiate()
+		var panel: PlayerPanel = PLAYER_PANEL_SCENE.instantiate()
 		_player_list.add_child(panel)
 		panel.setup(player)
 
 
 func _refresh_prematch() -> void:
 	var ctx: Dictionary = _game.get_prematch_context()
-
 	var context_parts: PackedStringArray = []
-	# Match type is always first — it's the most important piece of context.
+
 	context_parts.append(ctx["type_label"])
 
 	if ctx["is_important"]:
@@ -63,12 +63,12 @@ func _refresh_prematch() -> void:
 		context_parts.append(GameText.STREAK_LOSS_PREFIX % absi(ctx["streak"]))
 
 	if ctx.get("game_over", false):
-		context_parts.append("(Final season reached)")
+		context_parts.append(GameText.GAME_OVER_NOTICE)
 
 	_match_context_lbl.text = "  ·  ".join(context_parts)
 
 	var cond_parts: PackedStringArray = []
-	for entry in ctx["conditions"]:
+	for entry: Dictionary in ctx["conditions"]:
 		cond_parts.append("%s %s" % [entry["name"], entry["condition"]])
 	_conditions_lbl.text = "  |  ".join(cond_parts)
 
@@ -76,30 +76,36 @@ func _refresh_prematch() -> void:
 func _on_advance_pressed() -> void:
 	var result: Dictionary = _game.advance_week()
 	_advance_btn.disabled = true
+
 	for panel in _player_list.get_children():
 		panel.refresh()
+
 	if result.get("has_match", true):
 		_show_result(result)
 	else:
 		_show_rest_summary()
-	# Lock permanently if game is over after this week
+
 	if result.get("game_over", false):
-		_advance_btn.text = "Season limit reached"
-		_advance_btn.disabled = true
+		_advance_btn.text     = GameText.GAME_OVER_BTN
+		# Leave disabled — dismiss will not re-enable it
 
 
 func _on_dismiss_pressed() -> void:
 	_result_overlay.hide()
-	_advance_btn.disabled = false
+	if not _game_is_over():
+		_advance_btn.disabled = false
 	_refresh_prematch()
+
+
+func _game_is_over() -> bool:
+	return Calendar.is_game_over(_game.week)
 
 
 func _show_rest_summary() -> void:
 	_outcome_label.text = GameText.OUTCOME_REST_WEEK
 	_outcome_label.add_theme_color_override("font_color", COLOR_REST)
 	_score_label.text   = GameText.OUTCOME_REST_DESC
-	for child in _player_results.get_children():
-		child.queue_free()
+	_clear_results()
 	_result_overlay.show()
 
 
@@ -115,141 +121,29 @@ func _show_result(result: Dictionary) -> void:
 		_outcome_label.text = GameText.OUTCOME_DEFEAT + close
 		_outcome_label.add_theme_color_override("font_color", COLOR_DEFEAT)
 
-	# Show match type below outcome so it reads: "VICTORY\nTournament"
-	var type_suffix: String = result.get("type_label", "")
-	_score_label.text = type_suffix + "\n" + GameText.MATCH_SCORE_LINE % [result["team_score"], result["opponent_score"]]
+	_score_label.text = result.get("type_label", "") + "\n" + \
+		GameText.MATCH_SCORE_LINE % [result["team_score"], result["opponent_score"]]
 
-	for child in _player_results.get_children():
-		child.queue_free()
+	_clear_results()
 
 	var mvp_score: int = 0
-	for entry in result["players"]:
+	for entry: Dictionary in result["players"]:
 		if entry["score"] > mvp_score:
 			mvp_score = entry["score"]
 
-	for entry in result["players"]:
-		_player_results.add_child(
-			_make_result_row(entry["player"], entry, entry["score"] == mvp_score)
-		)
+	for entry: Dictionary in result["players"]:
+		var row: ResultRow = RESULT_ROW_SCENE.instantiate()
+		_player_results.add_child(row)
+		row.setup(entry["player"], entry, entry["score"] == mvp_score)
 
-	# Level-up banners — shown at the bottom of the player list
-	for lu in result.get("level_ups", []):
-		var banner := _make_level_up_banner(lu)
+	for lu: Dictionary in result.get("level_ups", []):
+		var banner: LevelUpBanner = LEVEL_UP_BANNER_SCENE.instantiate()
 		_player_results.add_child(banner)
+		banner.setup(lu)
 
 	_result_overlay.show()
 
 
-func _make_result_row(p: Player, entry: Dictionary, is_mvp: bool) -> PanelContainer:
-	var card   := PanelContainer.new()
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left",   10)
-	margin.add_theme_constant_override("margin_right",  10)
-	margin.add_theme_constant_override("margin_top",    6)
-	margin.add_theme_constant_override("margin_bottom", 6)
-	card.add_child(margin)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
-	margin.add_child(vbox)
-
-	# Header row: name + level badge + MVP badge + performance label
-	var header := HBoxContainer.new()
-	vbox.add_child(header)
-
-	var name_lbl := Label.new()
-	name_lbl.text = p.player_name
-	name_lbl.add_theme_font_size_override("font_size", 15)
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if is_mvp:
-		name_lbl.add_theme_color_override("font_color", COLOR_MVP)
-	header.add_child(name_lbl)
-
-	# Level badge
-	var level_lbl := Label.new()
-	level_lbl.text = GameText.LEVEL_BADGE % entry.get("level", p.level)
-	level_lbl.add_theme_font_size_override("font_size", 11)
-	level_lbl.add_theme_color_override("font_color", Color(0.55, 0.80, 1.0, 1.0))
-	header.add_child(level_lbl)
-
-	if is_mvp:
-		var badge := Label.new()
-		badge.text = GameText.MVP_BADGE
-		badge.add_theme_font_size_override("font_size", 12)
-		badge.add_theme_color_override("font_color", COLOR_MVP)
-		header.add_child(badge)
-
-	var perf := Label.new()
-	perf.text = entry["label"]
-	perf.add_theme_font_size_override("font_size", 14)
-	header.add_child(perf)
-
-	# Flavor text
-	var flavor := Label.new()
-	flavor.text = entry["flavor"]
-	flavor.add_theme_font_size_override("font_size", 12)
-	flavor.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7, 1.0))
-	flavor.autowrap_mode = TextServer.AUTOWRAP_WORD
-	vbox.add_child(flavor)
-
-	# XP bar row
-	var xp_row := HBoxContainer.new()
-	xp_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(xp_row)
-
-	var xp_lbl := Label.new()
-	xp_lbl.text = GameText.XP_GAINED % entry.get("xp_gained", 0)
-	xp_lbl.add_theme_font_size_override("font_size", 11)
-	xp_lbl.add_theme_color_override("font_color", Color(0.55, 0.90, 0.60, 1.0))
-	xp_row.add_child(xp_lbl)
-
-	var xp_bar := ProgressBar.new()
-	xp_bar.max_value       = 1.0
-	xp_bar.value          = entry.get("xp_progress", LevelSystem.level_progress(p))
-	xp_bar.show_percentage = false
-	xp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	xp_bar.custom_minimum_size   = Vector2(0, 8)
-	xp_row.add_child(xp_bar)
-
-	# Footer: score + trait + streak
-	var streak_hint: String = ""
-	if p.win_streak >= 3:    streak_hint = "  · " + GameText.STREAK_ON_ROLL
-	elif p.win_streak <= -3: streak_hint = "  · " + GameText.STREAK_COLD
-
-	var footer := Label.new()
-	footer.text = "%d pts  ·  [%s]%s" % [entry["score"], p.primary_trait, streak_hint]
-	footer.add_theme_font_size_override("font_size", 11)
-	footer.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5, 1.0))
-	vbox.add_child(footer)
-
-	return card
-
-
-# Level-up banner — shown once per level-up event at the bottom of results.
-func _make_level_up_banner(lu: Dictionary) -> PanelContainer:
-	var card   := PanelContainer.new()
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left",   12)
-	margin.add_theme_constant_override("margin_right",  12)
-	margin.add_theme_constant_override("margin_top",    8)
-	margin.add_theme_constant_override("margin_bottom", 8)
-	card.add_child(margin)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
-	margin.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "%s  %s" % [lu["player_name"], GameText.LEVEL_UP % lu["new_level"]]
-	title.add_theme_font_size_override("font_size", 16)
-	title.add_theme_color_override("font_color", Color(0.40, 1.0, 0.60, 1.0))
-	vbox.add_child(title)
-
-	var focus_part: String = "  Focus +%d" % lu["focus_gain"] if lu["focus_gain"] > 0 else ""
-	var stat_lbl := Label.new()
-	stat_lbl.text = GameText.LEVEL_UP_STATS % [lu["skill_gain"], focus_part]
-	stat_lbl.add_theme_font_size_override("font_size", 12)
-	stat_lbl.add_theme_color_override("font_color", Color(0.7, 0.9, 0.7, 1.0))
-	vbox.add_child(stat_lbl)
-
-	return card
+func _clear_results() -> void:
+	for child in _player_results.get_children():
+		child.queue_free()

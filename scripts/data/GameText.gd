@@ -1,7 +1,3 @@
-# scripts/data/GameText.gd
-# Single source of truth for ALL user-facing strings.
-# Add new flavor lines here — logic picks them automatically.
-# No logic here. No UI references. Pure data.
 class_name GameText
 extends RefCounted
 
@@ -65,6 +61,8 @@ const OUTCOME_REST_DESC:   String = "No match this week. Players recovered."
 const MATCH_IMPORTANT:     String = "🏆 IMPORTANT MATCH"
 const MATCH_SCORE_LINE:    String = "Your team  %d pts   vs   Enemy  %d pts"
 const MATCH_OPP_PREFIX:    String = "Opponent: %s"
+const GAME_OVER_NOTICE:    String = "(Final season reached)"
+const GAME_OVER_BTN:       String = "Season limit reached"
 
 # --- Match type labels (Calendar) ---
 const MATCH_TYPE: Dictionary = {
@@ -74,10 +72,8 @@ const MATCH_TYPE: Dictionary = {
 }
 
 
-# --- Micro reward templates ---
-const REWARD_SKILL:   String = "%s improved (Skill +%d)"
-const REWARD_STAMINA: String = "%s recovered well (Stamina +%d)"
-const REWARD_PREFIX:  String = "📈 "
+# --- Micro reward templates (kept for future use) ---
+const REWARD_PREFIX: String = "📈 "
 
 
 # --- MVP badge ---
@@ -159,7 +155,9 @@ static func pick(arr: Array) -> String:
 static func flavor(trait_key: String, situation: String) -> String:
 	var trait_data: Dictionary = FLAVOR.get(trait_key, FLAVOR["none"])
 	var lines: Array = trait_data.get(situation, [])
+	
 	if lines.is_empty():
 		# Fallback to mid
 		lines = trait_data.get("mid", ["Played a steady game."])
+		
 	return pick(lines)
