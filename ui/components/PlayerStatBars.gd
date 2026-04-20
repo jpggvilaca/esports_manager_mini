@@ -5,9 +5,15 @@
 class_name PlayerStatBars
 extends VBoxContainer
 
-const STAMINA_WARN      := 40
-const COLOR_STAMINA_OK  := Color(0.25, 0.75, 0.40, 1.0)
-const COLOR_STAMINA_WARN := Color(0.85, 0.45, 0.10, 1.0)
+# Color thresholds apply to all three bars equally.
+const THRESHOLD_GREEN:  int = 75
+const THRESHOLD_ORANGE: int = 55
+const THRESHOLD_YELLOW: int = 35
+
+const COLOR_GREEN:  Color = Color(0.20, 0.78, 0.35, 1.0)
+const COLOR_ORANGE: Color = Color(0.90, 0.50, 0.10, 1.0)
+const COLOR_YELLOW: Color = Color(0.90, 0.80, 0.10, 1.0)
+const COLOR_RED:    Color = Color(0.85, 0.18, 0.18, 1.0)
 
 @onready var _skill_bar:   ProgressBar = $SkillRow/SkillBar
 @onready var _skill_val:   Label       = $SkillRow/SkillVal
@@ -18,12 +24,19 @@ const COLOR_STAMINA_WARN := Color(0.85, 0.45, 0.10, 1.0)
 
 
 func refresh(player: Player) -> void:
-	_skill_bar.value  = player.skill
-	_skill_val.text   = str(player.skill)
+	_set_bar(_skill_bar,   _skill_val,   player.skill)
+	_set_bar(_stamina_bar, _stamina_val, player.stamina)
+	_set_bar(_focus_bar,   _focus_val,   player.focus)
 
-	_stamina_bar.value   = player.stamina
-	_stamina_val.text    = str(player.stamina)
-	_stamina_bar.modulate = COLOR_STAMINA_WARN if player.stamina < STAMINA_WARN else COLOR_STAMINA_OK
 
-	_focus_bar.value  = player.focus
-	_focus_val.text   = str(player.focus)
+func _set_bar(bar: ProgressBar, val_label: Label, value: int) -> void:
+	bar.value       = value
+	val_label.text  = str(value)
+	bar.modulate    = _color_for(value)
+
+
+static func _color_for(value: int) -> Color:
+	if value >= THRESHOLD_GREEN:  return COLOR_GREEN
+	if value >= THRESHOLD_ORANGE: return COLOR_ORANGE
+	if value >= THRESHOLD_YELLOW: return COLOR_YELLOW
+	return COLOR_RED

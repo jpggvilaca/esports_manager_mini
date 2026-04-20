@@ -26,11 +26,16 @@ func _init() -> void:
 func advance_week() -> Dictionary:
 	# Capture planned actions BEFORE apply_actions resets them to "rest".
 	var has_match: bool = _team_has_active_action()
+	# Also record which players are resting so results can mark them.
+	var resting_players: Array[String] = []
+	for player: Player in players:
+		if player.planned_action == "rest":
+			resting_players.append(player.player_name)
 	apply_actions()
 
 	var result: Dictionary = {}
 	if has_match:
-		result = run_match()
+		result = run_match(resting_players)
 		_update_streaks(result["won"])
 	else:
 		result = { "has_match": false }
@@ -100,7 +105,7 @@ func apply_actions() -> void:
 		player.planned_action = "rest"
 
 
-func run_match() -> Dictionary:
+func run_match(resting_players: Array[String]) -> Dictionary:
 	var cal_entry: Dictionary = Calendar.get_week(week)
 	var match_type: String    = cal_entry["type"]
 	var is_important: bool    = match_type != Calendar.TYPE_NORMAL
@@ -116,6 +121,8 @@ func run_match() -> Dictionary:
 	for player_entry: Dictionary in result["players"]:
 		var p: Player = player_entry["player"]
 		p.last_score  = player_entry["score"]
+		# Mark resting players — they played but had a passive week.
+		player_entry["rested"] = p.player_name in resting_players
 
 		var new_levels: Array = LevelSystem.award_match_xp(p, player_entry["label"], match_type)
 		level_ups.append_array(new_levels)

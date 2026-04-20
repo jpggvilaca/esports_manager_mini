@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/GameWorld.gd" id="1_gw"]
+[ext_resource type="Texture2D" path="res://assets/room/player1.png" id="2_p1"]
+[ext_resource type="Texture2D" path="res://assets/room/player2.png" id="3_p2"]
+[ext_resource type="Texture2D" path="res://assets/room/player3.png" id="4_p3"]
 
 [node name="GameWorld" type="Node2D"]
 script = ExtResource("1_gw")
@@ -11,46 +14,64 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.10, 0.11, 0.14, 1.0)
 
+[node name="Players" type="Node2D" parent="."]
+
+[node name="Player1" type="Sprite2D" parent="Players"]
+position = Vector2(560, 540)
+texture = ExtResource("2_p1")
+
+[node name="Player2" type="Sprite2D" parent="Players"]
+position = Vector2(960, 540)
+texture = ExtResource("3_p2")
+
+[node name="Player3" type="Sprite2D" parent="Players"]
+position = Vector2(1360, 540)
+texture = ExtResource("4_p3")
+
 [node name="UI" type="CanvasLayer" parent="."]
 layer = 1
 
-[node name="WeekLabel" type="Label" parent="UI"]
+[node name="HeaderPanel" type="PanelContainer" parent="UI"]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -150.0
-offset_top = 12.0
-offset_right = -12.0
-offset_bottom = 40.0
-theme_override_font_sizes/font_size = 15
-theme_override_colors/font_color = Color(0.55, 0.60, 0.70, 1.0)
-horizontal_alignment = 2
-text = "Week 1"
+offset_left = -200.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 76.0
 
-[node name="PlaceholderLabel" type="Label" parent="UI"]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -240.0
-offset_top = -100.0
-offset_right = 240.0
-offset_bottom = 20.0
-text = "🖥️  Team Room\n\n3 players · 3 computers\nIsometric view coming soon"
-theme_override_font_sizes/font_size = 22
-theme_override_colors/font_color = Color(0.35, 0.40, 0.50, 1.0)
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 3
+[node name="HeaderMargin" type="MarginContainer" parent="UI/HeaderPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="HeaderVBox" type="VBoxContainer" parent="UI/HeaderPanel/HeaderMargin"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="WeekLabel" type="Label" parent="UI/HeaderPanel/HeaderMargin/HeaderVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.85, 0.90, 1.0, 1.0)
+horizontal_alignment = 2
+text = "Season 1 · Week 1"
+
+[node name="NextEventLabel" type="Label" parent="UI/HeaderPanel/HeaderMargin/HeaderVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(1.0, 0.70, 0.20, 1.0)
+horizontal_alignment = 2
+text = ""
 
 [node name="ManageBtn" type="Button" parent="UI"]
 anchors_preset = 4
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -130.0
-offset_top = 220.0
+offset_top = 860.0
 offset_right = 130.0
-offset_bottom = 266.0
+offset_bottom = 906.0
 text = "📋  Open Management"
 theme_override_font_sizes/font_size = 17

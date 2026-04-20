@@ -17,19 +17,26 @@ const COLOR_MVP := Color(1.0, 0.85, 0.20, 1.0)
 
 
 func setup(p: Player, entry: Dictionary, is_mvp: bool) -> void:
-	_name_lbl.text  = p.player_name
-	_level_lbl.text = GameText.LEVEL_BADGE % entry.get("level", p.level)
-	_perf_lbl.text  = entry["label"]
+	_name_lbl.text   = p.player_name
+	_level_lbl.text  = GameText.LEVEL_BADGE % entry.get("level", p.level)
 	_flavor_lbl.text = entry["flavor"]
-	_xp_lbl.text    = GameText.XP_GAINED % entry.get("xp_gained", 0)
-	_xp_bar.value   = entry.get("xp_progress", LevelSystem.level_progress(p))
+	_xp_lbl.text     = GameText.XP_GAINED % entry.get("xp_gained", 0)
+	_xp_bar.value    = entry.get("xp_progress", LevelSystem.level_progress(p))
+
+	if entry.get("rested", false):
+		_perf_lbl.text = "💤 Rested"
+		_perf_lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.75, 1.0))
+		_flavor_lbl.text = "Sat this one out."
+	else:
+		_perf_lbl.text = entry["label"]
+		_perf_lbl.remove_theme_color_override("font_color")
 
 	var streak_hint: String = ""
 	if p.win_streak >= 3:    streak_hint = "  · " + GameText.STREAK_ON_ROLL
 	elif p.win_streak <= -3: streak_hint = "  · " + GameText.STREAK_COLD
 	_footer_lbl.text = "%d pts  ·  [%s]%s" % [entry["score"], p.primary_trait, streak_hint]
 
-	if is_mvp:
+	if is_mvp and not entry.get("rested", false):
 		_name_lbl.add_theme_color_override("font_color", COLOR_MVP)
 		_mvp_lbl.text = GameText.MVP_BADGE
 		_mvp_lbl.add_theme_color_override("font_color", COLOR_MVP)

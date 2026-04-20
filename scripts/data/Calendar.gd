@@ -94,3 +94,17 @@ static func is_game_over(absolute_week: int) -> bool:
 	if MAX_SEASONS == -1:
 		return false
 	return get_season(absolute_week) > MAX_SEASONS
+
+
+# Returns a dict describing the next non-normal event ahead of absolute_week.
+# { "type": String, "weeks_away": int } or {} if none found in this season.
+static func get_next_event(absolute_week: int) -> Dictionary:
+	var current_idx: int = get_week_in_season(absolute_week) - 1  # 0-based
+	for i in range(current_idx + 1, WEEK_TEMPLATE.size()):
+		var entry: Dictionary = WEEK_TEMPLATE[i]
+		if entry["type"] != TYPE_NORMAL:
+			return {
+				"type":       entry["type"],
+				"weeks_away": i - current_idx,
+			}
+	return {}

@@ -30,8 +30,20 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.6, 0.85, 1.0, 1.0)
 
-[node name="StatBars" parent="Margin/VBox" instance=ExtResource("2_bars")]
+[node name="ContentRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Portrait" type="TextureRect" parent="Margin/VBox/ContentRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(56, 56)
+expand_mode = 3
+stretch_mode = 6
+
+[node name="StatBars" parent="Margin/VBox/ContentRow" instance=ExtResource("2_bars")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
 
 [node name="ActionRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2

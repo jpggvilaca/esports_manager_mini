@@ -4,9 +4,16 @@ extends Control
 
 signal return_to_world(week: int, season: int)
 
-const PLAYER_PANEL_SCENE   := preload("res://ui/components/PlayerPanel.tscn")
-const RESULT_ROW_SCENE     := preload("res://ui/components/ResultRow.tscn")
+const PLAYER_PANEL_SCENE    := preload("res://ui/components/PlayerPanel.tscn")
+const RESULT_ROW_SCENE      := preload("res://ui/components/ResultRow.tscn")
 const LEVEL_UP_BANNER_SCENE := preload("res://ui/components/LevelUpBanner.tscn")
+
+# Portrait textures indexed by player slot (0-based).
+const PORTRAITS: Array = [
+	preload("res://assets/portraits/portrait1.png"),
+	preload("res://assets/portraits/portrait2.png"),
+	preload("res://assets/portraits/portrait3.png"),
+]
 
 const COLOR_VICTORY   := Color(0.20, 0.85, 0.40, 1.0)
 const COLOR_DEFEAT    := Color(0.90, 0.25, 0.25, 1.0)
@@ -38,10 +45,12 @@ func _ready() -> void:
 
 
 func _build_player_panels() -> void:
-	for player: Player in _game.players:
+	for i: int in _game.players.size():
+		var player: Player = _game.players[i]
+		var portrait: Texture2D = PORTRAITS[i] if i < PORTRAITS.size() else null
 		var panel: PlayerPanel = PLAYER_PANEL_SCENE.instantiate()
 		_player_list.add_child(panel)
-		panel.setup(player)
+		panel.setup(player, portrait)
 
 
 func _refresh_prematch() -> void:
