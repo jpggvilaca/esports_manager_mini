@@ -16,8 +16,13 @@ const XP_REST:  int = 0   # rest gives nothing — intentional design
 const XP_MULT: Dictionary = {
 	"normal":     1.0,
 	"important":  1.5,
-	"tournament": 2.0,
+	"tournament": 3.0,   # raised from 2.0 — tournament is the climax
+	"solo":       1.5,   # same stakes as important
 }
+
+# --- Loss XP penalty: multiply earned XP by this on a loss ---
+# Player still gains something — losing teaches too — but far less.
+const XP_LOSS_MULT: float = 0.35
 
 # --- Level thresholds: XP needed to reach each level (index = target level) ---
 # Index 0 unused. Level 1→2 costs 100, 2→3 costs 150, etc.
@@ -48,7 +53,17 @@ static func award_match_xp(player: Player, perf_label: String, match_type: Strin
 	var base_xp: int = _xp_for_label(perf_label)
 	var mult: float  = XP_MULT.get(match_type, 1.0)
 	var gained: int  = int(base_xp * mult)
-	
+	return _apply_xp(player, gained)
+
+
+# Like award_match_xp but applies loss penalty when the team lost.
+# Use this in all match paths so loss consequences are consistent.
+static func award_match_xp_with_result(player: Player, perf_label: String, match_type: String, won: bool) -> Array:
+	var base_xp: int = _xp_for_label(perf_label)
+	var mult: float  = XP_MULT.get(match_type, 1.0)
+	if not won:
+		mult *= XP_LOSS_MULT
+	var gained: int  = int(base_xp * mult)
 	return _apply_xp(player, gained)
 
 

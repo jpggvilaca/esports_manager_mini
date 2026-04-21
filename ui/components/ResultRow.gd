@@ -4,7 +4,13 @@
 class_name ResultRow
 extends PanelContainer
 
-const COLOR_MVP := Color(1.0, 0.85, 0.20, 1.0)
+const COLOR_MVP   := Color(1.0, 0.85, 0.20, 1.0)
+const COLOR_WORST := Color(0.85, 0.35, 0.35, 1.0)
+
+# XP animation duration in seconds — tune here.
+const XP_TWEEN_DURATION: float = 1.2
+
+var _xp_target: float = 0.0
 
 @onready var _name_lbl:   Label       = $Margin/VBox/Header/NameLabel
 @onready var _level_lbl:  Label       = $Margin/VBox/Header/LevelLabel
@@ -16,12 +22,15 @@ const COLOR_MVP := Color(1.0, 0.85, 0.20, 1.0)
 @onready var _footer_lbl: Label       = $Margin/VBox/FooterLabel
 
 
-func setup(p: Player, entry: Dictionary, is_mvp: bool) -> void:
+func setup(p: Player, entry: Dictionary, is_mvp: bool, is_worst: bool = false) -> void:
 	_name_lbl.text   = p.player_name
 	_level_lbl.text  = GameText.LEVEL_BADGE % entry.get("level", p.level)
 	_flavor_lbl.text = entry["flavor"]
 	_xp_lbl.text     = GameText.XP_GAINED % entry.get("xp_gained", 0)
-	_xp_bar.value    = entry.get("xp_progress", LevelSystem.level_progress(p))
+
+	# Bar starts at 0 — animate_xp() fills it after the node is in the tree.
+	_xp_target    = entry.get("xp_progress", LevelSystem.level_progress(p))
+	_xp_bar.value = 0.0
 
 	if entry.get("rested", false):
 		_perf_lbl.text = "💤 Rested"
@@ -41,3 +50,19 @@ func setup(p: Player, entry: Dictionary, is_mvp: bool) -> void:
 		_mvp_lbl.text = GameText.MVP_BADGE
 		_mvp_lbl.add_theme_color_override("font_color", COLOR_MVP)
 		_mvp_lbl.show()
+	elif is_worst and not entry.get("rested", false):
+		_name_lbl.add_theme_color_override("font_color", COLOR_WORST)
+		_mvp_lbl.text = GameText.WORST_BADGE
+		_mvp_lbl.add_theme_color_override("font_color", COLOR_WORST)
+		_mvp_lbl.show()
+
+
+# Called by Main after the row is in the scene tree.
+# Creates a Tween that fills the XP bar from 0 to _xp_target.
+func animate_xp(delay: float = 0.0) -> void:
+	var tween: Tween = create_tween()
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_QUAD)
+	if delay > 0.0:
+		tween.tween_interval(delay)
+	tween.tween_property(_xp_bar, "value", _xp_target, XP_TWEEN_DURATION)

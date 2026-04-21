@@ -30,8 +30,11 @@ func _update_header(abs_week: int, season: int) -> void:
 	if next.is_empty():
 		_next_event_label.text = "No more events this season"
 	else:
-		var type_str: String = "Tournament" if next["type"] == Calendar.TYPE_TOURNAMENT \
-			else "Important Match"
+		var type_str: String
+		match next["type"]:
+			Calendar.TYPE_TOURNAMENT: type_str = "Tournament"
+			Calendar.TYPE_SOLO:       type_str = "Solo Match"
+			_:                        type_str = "Important Match"
 		var weeks: int = next["weeks_away"]
 		_next_event_label.text = "%s in %d week%s" % [type_str, weeks, "s" if weeks > 1 else ""]
 
@@ -53,3 +56,6 @@ func _on_return_from_management(week_in_season: int, season: int) -> void:
 	_update_header(abs_week, season)
 	_ui.show()
 	_management.hide()
+	# Prepare management for the new week so it's ready next time it opens.
+	if _management != null:
+		_management.prepare_new_week()

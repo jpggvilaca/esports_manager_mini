@@ -19,6 +19,31 @@ const ACTIONS: Dictionary = {
 }
 
 
+# --- Preparation phase framing ---
+const PREP_PHASE_HEADER:   String = "Prepare for Match"
+const PREP_PHASE_SUBTITLE: String = "Choose how each player prepares this week."
+const PREP_ACTION_LABEL:   String = "Prepare:"
+
+# --- Week context lines (shown below the week/match-type header) ---
+const WEEK_CONTEXT: Dictionary = {
+	"normal":     "Another week of practice and competition.",
+	"important":  "A crucial match is coming up. Preparation matters.",
+	"tournament": "Tournament week. Every decision counts.",
+	"solo":       "One player carries the team. Choose wisely.",
+}
+
+# --- Week + match type header format ---
+const WEEK_HEADER: String = "Week %d — %s"  # e.g. "Week 4 — IMPORTANT MATCH"
+
+# --- Match type display names (uppercase, for the week header) ---
+const MATCH_TYPE_UPPER: Dictionary = {
+	"normal":     "REGULAR MATCH",
+	"important":  "IMPORTANT MATCH",
+	"tournament": "TOURNAMENT",
+	"solo":       "SOLO MATCH",
+}
+
+
 # --- Performance labels (indexed by tier: 0=low, 1=mid, 2=high) ---
 const PERF_LABELS: Array[String] = [
 	"😬 Struggled",
@@ -33,6 +58,30 @@ const CONDITIONS: Dictionary = {
 	"tired":      "😐 Tired",
 	"confident":  "🔥 Confident",
 	"ready":      "✅ Ready",
+}
+
+
+# --- Stamina condition labels (readable, shown in pre-match) ---
+const STAMINA_CONDITION: Dictionary = {
+	"fresh":     "Fresh",
+	"ok":        "OK",
+	"tired":     "Tired",
+	"exhausted": "Exhausted",
+}
+
+# --- Morale condition labels ---
+const MORALE_CONDITION: Dictionary = {
+	"confident": "Confident",
+	"shaky":     "Shaky",
+	"neutral":   "",   # don't show anything if unremarkable
+}
+
+# --- Opponent difficulty labels (maps calendar label → display) ---
+const DIFFICULTY: Dictionary = {
+	"weak":     "Easy",
+	"average":  "Medium",
+	"strong":   "Hard",
+	"dominant": "Very Hard",
 }
 
 
@@ -69,7 +118,21 @@ const MATCH_TYPE: Dictionary = {
 	"normal":     "Regular Match",
 	"important":  "⭐ Important Match",
 	"tournament": "🏆 Tournament",
+	"solo":       "👤 Solo Match",
 }
+
+# --- Solo match strings ---
+const SOLO_PICK_PROMPT:  String = "Choose your solo player:"
+const SOLO_WIN_FLAVOR:   Array  = ["Carried the match alone.", "Stepped up when it counted.", "Proved they don't need the team."]
+const SOLO_LOSS_FLAVOR:  Array  = ["Couldn't handle it alone.", "The pressure was too much solo.", "Needed backup that wasn't there."]
+const ADVANCE_BTN_SOLO:  String = "⚡  Advance Week  — 👤 Solo"
+
+# --- Tournament strings ---
+const TOURNAMENT_ROUND:       String = "Round %d"
+const TOURNAMENT_WIN_ALL:     String = "Dominated the entire tournament."
+const TOURNAMENT_WIN_CLOSE:   String = "Scraped through — but made it."
+const TOURNAMENT_LOSS_ROUND:  String = "Eliminated in Round %d."
+const TOURNAMENT_ROUNDS_WON:  String = "Won %d / %d rounds"
 
 
 # --- Micro reward templates (kept for future use) ---
@@ -77,7 +140,25 @@ const REWARD_PREFIX: String = "📈 "
 
 
 # --- MVP badge ---
-const MVP_BADGE: String = "⭐ MVP"
+const MVP_BADGE:   String = "⭐ MVP"
+const WORST_BADGE: String = "💔 Struggled"  # worst performer badge in results
+
+# --- Pre-match risk warnings ---
+const WARN_TIRED_PLAYER: String = "⚠️ Tired players"
+const WARN_IMPORTANT:    String = "Stakes are high — don't waste this"
+const WARN_SOLO:         String = "👤 Solo match — pick wisely"
+
+# --- Pre-match win estimate ---
+const ESTIMATE_FAVORED:  String = "🟢 You are favored"
+const ESTIMATE_EVEN:     String = "🟡 Even match"
+const ESTIMATE_UNDERDOG: String = "🔴 You are the underdog"
+
+# --- Morale delta display (shown in conditions line) ---
+const MORALE_GAIN: String = "(+%d morale)"
+const MORALE_LOSS: String = "(%d morale)"  # value is negative, %d prints it with sign
+const ADVANCE_BTN_NORMAL:      String = "⚡  Advance Week"
+const ADVANCE_BTN_IMPORTANT:   String = "⚡  Advance Week  — ⭐ Important"
+const ADVANCE_BTN_TOURNAMENT:  String = "⚡  Advance Week  — 🏆 Tournament"
 
 # --- XP & Level ---
 const XP_GAINED:    String = "+%d XP"

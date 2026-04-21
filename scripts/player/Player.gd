@@ -16,10 +16,11 @@ var minor_trait: String
 var planned_action: String
 
 # --- Progression tracking (read by UI and FlavorGenerator, written by GameManager) ---
-var last_score: int      = 0   # score from previous match
-var win_streak: int      = 0   # consecutive wins (+) or losses (-)
-var skill_delta: int     = 0   # skill change this week (for micro-reward display)
-var stamina_delta: int   = 0   # stamina change this week
+var last_score: int      = 0
+var win_streak: int      = 0
+var skill_delta: int     = 0
+var stamina_delta: int   = 0
+var morale_delta: int    = 0   # morale change this week (for UI feedback loop)
 
 # --- XP & Levelling (written by LevelSystem, read by UI) ---
 var xp: int              = 0   # current XP within this level
@@ -43,4 +44,4 @@ func _init(
 	morale         = p_morale
 	primary_trait  = p_primary
 	minor_trait    = p_minor
-	planned_action = "rest"
+	planned_action = ""  # no action selected — must be chosen before advancing

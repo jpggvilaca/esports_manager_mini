@@ -16,6 +16,7 @@ const SEASON_DIFFICULTY_STEP: float = 0.08
 const TYPE_NORMAL:     String = "normal"
 const TYPE_IMPORTANT:  String = "important"
 const TYPE_TOURNAMENT: String = "tournament"
+const TYPE_SOLO:       String = "solo"
 
 # --- Week template (repeats every season) ---
 # opponent: base score at season-1 difficulty (scaled up in later seasons)
@@ -30,17 +31,17 @@ const TYPE_TOURNAMENT: String = "tournament"
 const WEEK_TEMPLATE: Array = [
 	# Block 1 — Early grind
 	{ "type": TYPE_NORMAL,     "opponent": 145, "label": "weak"     },  #  1
-	{ "type": TYPE_NORMAL,     "opponent": 150, "label": "weak"     },  #  2
+	{ "type": TYPE_SOLO,       "opponent": 150, "label": "weak"     },  #  2 ★solo
 	{ "type": TYPE_NORMAL,     "opponent": 158, "label": "weak"     },  #  3
 	{ "type": TYPE_IMPORTANT,  "opponent": 168, "label": "average"  },  #  4 ★
 	{ "type": TYPE_NORMAL,     "opponent": 160, "label": "average"  },  #  5
-	{ "type": TYPE_NORMAL,     "opponent": 165, "label": "average"  },  #  6
+	{ "type": TYPE_SOLO,       "opponent": 165, "label": "average"  },  #  6 ★solo
 
 	# Block 2 — Mid-season
 	{ "type": TYPE_NORMAL,     "opponent": 170, "label": "average"  },  #  7
 	{ "type": TYPE_NORMAL,     "opponent": 175, "label": "average"  },  #  8
 	{ "type": TYPE_IMPORTANT,  "opponent": 185, "label": "strong"   },  #  9 ★
-	{ "type": TYPE_NORMAL,     "opponent": 178, "label": "strong"   },  # 10
+	{ "type": TYPE_SOLO,       "opponent": 178, "label": "strong"   },  # 10 ★solo
 	{ "type": TYPE_NORMAL,     "opponent": 183, "label": "strong"   },  # 11
 	{ "type": TYPE_TOURNAMENT, "opponent": 205, "label": "dominant" },  # 12 🏆
 
@@ -48,7 +49,7 @@ const WEEK_TEMPLATE: Array = [
 	{ "type": TYPE_NORMAL,     "opponent": 185, "label": "strong"   },  # 13
 	{ "type": TYPE_NORMAL,     "opponent": 190, "label": "strong"   },  # 14
 	{ "type": TYPE_IMPORTANT,  "opponent": 200, "label": "dominant" },  # 15 ★
-	{ "type": TYPE_NORMAL,     "opponent": 192, "label": "strong"   },  # 16
+	{ "type": TYPE_SOLO,       "opponent": 192, "label": "strong"   },  # 16 ★solo
 	{ "type": TYPE_NORMAL,     "opponent": 198, "label": "dominant" },  # 17
 	{ "type": TYPE_IMPORTANT,  "opponent": 208, "label": "dominant" },  # 18 ★
 
@@ -100,6 +101,7 @@ static func is_game_over(absolute_week: int) -> bool:
 # { "type": String, "weeks_away": int } or {} if none found in this season.
 static func get_next_event(absolute_week: int) -> Dictionary:
 	var current_idx: int = get_week_in_season(absolute_week) - 1  # 0-based
+	
 	for i in range(current_idx + 1, WEEK_TEMPLATE.size()):
 		var entry: Dictionary = WEEK_TEMPLATE[i]
 		if entry["type"] != TYPE_NORMAL:
@@ -107,4 +109,5 @@ static func get_next_event(absolute_week: int) -> Dictionary:
 				"type":       entry["type"],
 				"weeks_away": i - current_idx,
 			}
+			
 	return {}
