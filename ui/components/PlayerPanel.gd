@@ -15,6 +15,7 @@ var _player: Player = null
 
 @onready var _name_label:     Label          = $Margin/VBox/HeaderRow/NameLabel
 @onready var _trait_badge:    Label          = $Margin/VBox/HeaderRow/TraitBadge
+@onready var _form_label:     Label          = $Margin/VBox/HeaderRow/FormLabel
 @onready var _portrait:       TextureRect    = $Margin/VBox/ContentRow/PortraitColumn/Portrait
 @onready var _level_label:    Label          = $Margin/VBox/ContentRow/PortraitColumn/LevelLabel
 @onready var _stat_bars:      PlayerStatBars = $Margin/VBox/ContentRow/StatBars
@@ -42,6 +43,12 @@ func reset_action() -> void:
 	emit_signal("action_changed", _player.player_name, "")
 
 
+# Show or hide action buttons. Called by Main during solo weeks.
+func set_actions_enabled(enabled: bool) -> void:
+	_action_buttons.visible = enabled
+	_action_label.visible   = enabled
+
+
 func _build_action_buttons() -> void:
 	for action_id: String in ["train", "rest", "scrim"]:
 		var btn := Button.new()
@@ -62,6 +69,7 @@ func _refresh_display() -> void:
 	_name_label.text  = _player.player_name
 	_trait_badge.text = "[%s]" % _player.primary_trait
 	_level_label.text = GameText.LEVEL_BADGE % _player.level
+	_form_label.text  = _player.form_label
 	_stat_bars.refresh(_player)
 	_highlight_action(_player.planned_action)
 

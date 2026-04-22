@@ -30,8 +30,6 @@ var _actions_chosen: int = 0
 @onready var _prep_week_lbl:     Label         = $MarginContainer/VBox/PrepWeekLabel
 @onready var _prep_context_lbl:  Label         = $MarginContainer/VBox/PrepContextLabel
 @onready var _player_list:       VBoxContainer = $MarginContainer/VBox/PlayerList
-@onready var _match_context_lbl: Label         = $MarginContainer/VBox/PreMatchPanel/PreMatchMargin/PreMatchVBox/MatchContextLabel
-@onready var _difficulty_lbl:    Label         = $MarginContainer/VBox/PreMatchPanel/PreMatchMargin/PreMatchVBox/DifficultyLabel
 @onready var _conditions_lbl:    Label         = $MarginContainer/VBox/PreMatchPanel/PreMatchMargin/PreMatchVBox/ConditionsLabel
 @onready var _warning_lbl:       Label         = $MarginContainer/VBox/PreMatchPanel/PreMatchMargin/PreMatchVBox/WarningLabel
 @onready var _solo_picker:       VBoxContainer = $MarginContainer/VBox/PreMatchPanel/PreMatchMargin/PreMatchVBox/SoloPicker
@@ -121,27 +119,15 @@ func _refresh_prematch() -> void:
 	_prep_week_lbl.text        = GameText.WEEK_HEADER % [ctx["week"], type_upper]
 	_prep_context_lbl.text     = GameText.WEEK_CONTEXT.get(match_type, "")
 
-	# --- Line 1: match type icon + label ---
-	_match_context_lbl.text = ctx["type_label"]
+	# --- Line 1: match type icon + label (drives prep area color) ---
 	if is_tournament:
-		_match_context_lbl.add_theme_color_override("font_color", COLOR_TOURNAMENT)
+		_prep_week_lbl.add_theme_color_override("font_color", COLOR_TOURNAMENT)
 	elif is_solo:
-		_match_context_lbl.add_theme_color_override("font_color", COLOR_SOLO)
+		_prep_week_lbl.add_theme_color_override("font_color", COLOR_SOLO)
 	elif ctx["is_important"]:
-		_match_context_lbl.add_theme_color_override("font_color", COLOR_IMPORTANT)
+		_prep_week_lbl.add_theme_color_override("font_color", COLOR_IMPORTANT)
 	else:
-		_match_context_lbl.remove_theme_color_override("font_color")
-
-	# --- Line 2: difficulty + streak + win estimate ---
-	var diff_parts: PackedStringArray = ["Difficulty: %s" % ctx["difficulty"]]
-	diff_parts.append(ctx["win_estimate"])
-	if ctx["streak"] >= 2:
-		diff_parts.append(GameText.STREAK_WIN_PREFIX % ctx["streak"])
-	elif ctx["streak"] <= -2:
-		diff_parts.append(GameText.STREAK_LOSS_PREFIX % absi(ctx["streak"]))
-	if ctx.get("game_over", false):
-		diff_parts.append(GameText.GAME_OVER_NOTICE)
-	_difficulty_lbl.text = "  ·  ".join(diff_parts)
+		_prep_week_lbl.remove_theme_color_override("font_color")
 
 	# --- Line 3: conditions with morale delta ---
 	var cond_parts: PackedStringArray = []
@@ -175,6 +161,10 @@ func _refresh_prematch() -> void:
 	else:
 		_solo_picker.hide()
 		_game.selected_solo_player = ""
+
+	# Disable action buttons on solo weeks — only the picker matters.
+	for panel in _player_list.get_children():
+		panel.set_actions_enabled(not is_solo)
 
 
 func _build_solo_picker(names: Array) -> void:
@@ -269,11 +259,13 @@ func _show_result(result: Dictionary) -> void:
 		_score_label.text = type_label + "\n" + score_line
 
 	# --- Summary line (MVP / worst / round summary) ---
-	var mvp:   String = result.get("mvp_name",  "")
+	var mvp:   String = result.get("mvp_name",  "") if won else ""
+	var best_effort: String = result.get("mvp_name", "") if not won else ""
 	var worst: String = result.get("worst_name", "")
 	var summary_parts: PackedStringArray = []
-	if mvp != "":   summary_parts.append("⭐ MVP: %s" % mvp)
-	if worst != "": summary_parts.append("💔 Struggled: %s" % worst)
+	if mvp != "":          summary_parts.append("⭐ MVP: %s" % mvp)
+	if best_effort != "": summary_parts.append("💪 Best effort: %s" % best_effort)
+	if worst != "":        summary_parts.append("💔 Struggled: %s" % worst)
 	if is_tournament:
 		summary_parts.append(result.get("round_summary", ""))
 	_summary_label.text = "  ·  ".join(summary_parts)
@@ -286,14 +278,15 @@ func _show_result(result: Dictionary) -> void:
 	var stagger: float = 0.0
 	for entry: Dictionary in result["players"]:
 		var p: Player      = entry["player"]
-		# Solo: skip bench players from result display entirely.
 		if is_solo and entry.get("rested", false):
 			continue
-		var is_mvp:   bool = p.player_name == mvp_name   and not entry.get("rested", false)
-		var is_worst: bool = p.player_name == worst_name and not entry.get("rested", false)
+		# MVP badge only on wins. On defeat show "best effort" badge instead (handled in ResultRow).
+		var is_mvp:        bool = won and p.player_name == mvp_name   and not entry.get("rested", false)
+		var is_best_effort: bool = not won and p.player_name == mvp_name and not entry.get("rested", false)
+		var is_worst:      bool = p.player_name == worst_name and not entry.get("rested", false)
 		var row: ResultRow = RESULT_ROW_SCENE.instantiate()
 		_player_results.add_child(row)
-		row.setup(p, entry, is_mvp, is_worst)
+		row.setup(p, entry, is_mvp, is_worst, is_best_effort)
 		row.animate_xp(stagger)
 		stagger += 0.15
 

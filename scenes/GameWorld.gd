@@ -6,18 +6,17 @@ extends Node2D
 const MANAGEMENT_SCENE := preload("res://scenes/Main.tscn")
 
 var _management: Control  = null
-var _current_week: int    = 1   # absolute week — kept in sync with GameManager
+var _current_week: int    = 1
 var _current_season: int  = 1
 
-@onready var _ui:               CanvasLayer = $UI
-@onready var _week_label:       Label       = $UI/HeaderPanel/HeaderMargin/HeaderVBox/WeekLabel
-@onready var _next_event_label: Label       = $UI/HeaderPanel/HeaderMargin/HeaderVBox/NextEventLabel
+@onready var _ui:                CanvasLayer = $UI
+@onready var _week_label:        Label       = $UI/HeaderPanel/HeaderMargin/HeaderVBox/WeekLabel
+@onready var _next_event_label:  Label       = $UI/HeaderPanel/HeaderMargin/HeaderVBox/NextEventLabel
+@onready var _season_goal_label: Label       = $UI/HeaderPanel/HeaderMargin/HeaderVBox/SeasonGoalLabel
 
 
 func _ready() -> void:
 	$UI/ManageBtn.pressed.connect(_on_manage_pressed)
-	# Labels show tscn defaults until management returns with real data.
-	# Add initialisation here when save/load is implemented.
 
 
 func _update_header(abs_week: int, season: int) -> void:
@@ -39,6 +38,21 @@ func _update_header(abs_week: int, season: int) -> void:
 		_next_event_label.text = "%s in %d week%s" % [type_str, weeks, "s" if weeks > 1 else ""]
 
 
+func _update_season_goal() -> void:
+	if _management == null:
+		return
+	var goal: Dictionary = _management._game.get_season_goal_display()
+	if goal["achieved"]:
+		_season_goal_label.text = "✅ " + goal["description"]
+		_season_goal_label.add_theme_color_override("font_color", Color(0.30, 0.95, 0.50, 1.0))
+	elif goal["type"] == "wins":
+		_season_goal_label.text = "🎯 %s (%d/%d)" % [goal["description"], goal["current"], goal["target"]]
+		_season_goal_label.remove_theme_color_override("font_color")
+	else:
+		_season_goal_label.text = "🎯 " + goal["description"]
+		_season_goal_label.remove_theme_color_override("font_color")
+
+
 func _on_manage_pressed() -> void:
 	if _management == null:
 		_management = MANAGEMENT_SCENE.instantiate()
@@ -51,11 +65,10 @@ func _on_manage_pressed() -> void:
 
 
 func _on_return_from_management(week_in_season: int, season: int) -> void:
-	# Reconstruct absolute week from season + week_in_season.
 	var abs_week: int = (season - 1) * Calendar.WEEKS_PER_SEASON + week_in_season
 	_update_header(abs_week, season)
 	_ui.show()
 	_management.hide()
-	# Prepare management for the new week so it's ready next time it opens.
 	if _management != null:
 		_management.prepare_new_week()
+		_update_season_goal()

@@ -22,6 +22,20 @@ var skill_delta: int     = 0
 var stamina_delta: int   = 0
 var morale_delta: int    = 0   # morale change this week (for UI feedback loop)
 
+# --- Form tracking: last 3 match performance labels ("Carried", "Solid", "Struggled") ---
+var form_history: Array  = []  # max 3 entries, most recent last
+
+# Derived form label — read by UI, computed from form_history.
+var form_label: String:
+	get:
+		if form_history.size() < 2:
+			return ""  # not enough history yet
+		var carried:   int = form_history.filter(func(l): return "Carried"   in l).size()
+		var struggled: int = form_history.filter(func(l): return "Struggled" in l).size()
+		if carried >= 2:   return "🔥 In Form"
+		if struggled >= 2: return "📉 Struggling"
+		return ""  # mixed — no label
+
 # --- XP & Levelling (written by LevelSystem, read by UI) ---
 var xp: int              = 0   # current XP within this level
 var level: int           = 1   # current level (starts at 1)

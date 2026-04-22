@@ -7,6 +7,8 @@ var players: Array[Player]       = []
 var week: int                    = 1
 var team_win_streak: int         = 0
 var selected_solo_player: String = ""
+var season_goal: Dictionary      = {}  # set in _init, tracked throughout run
+var total_wins: int              = 0   # all-time match wins for goal tracking
 
 var season: int:         get = _get_season
 var week_in_season: int: get = _get_week_in_season
@@ -21,6 +23,7 @@ func _init() -> void:
 		Player.new("Byte",  60, 60, 80, 70, "grinder",  "none"),
 		Player.new("Ghost", 55, 75, 85, 65, "volatile", "fragile"),
 	]
+	season_goal = _pick_season_goal()
 
 
 func advance_week() -> Dictionary:
@@ -342,6 +345,20 @@ func _finalise_result(result: Dictionary, match_type: String, opp_label: String,
 	var active: Array = sorted.filter(func(e): return not e.get("rested", false))
 	result["mvp_name"]   = active[0]["player"].player_name if active.size() > 0 else ""
 	result["worst_name"] = active[-1]["player"].player_name if active.size() > 1 else ""
+
+	# Update form history for active players.
+	for player_entry: Dictionary in result["players"]:
+		if not player_entry.get("rested", false):
+			var p: Player = player_entry["player"]
+			p.form_history.append(player_entry["label"])
+			if p.form_history.size() > 3:
+				p.form_history.pop_front()
+
+	# Track wins for season goal.
+	if result["won"]:
+		total_wins += 1
+	_check_season_goal(result)
+
 	return result
 
 
@@ -368,3 +385,60 @@ func _update_streaks(won: bool) -> void:
 		team_win_streak = min(team_win_streak - 1, -1)
 		for player: Player in players:
 			player.win_streak = min(player.win_streak - 1, -1)
+
+
+# --- Season goal ---
+
+# Pick a random goal at session start.
+func _pick_season_goal() -> Dictionary:
+	var goals: Array = [
+		{ "type": "wins",           "target": 8,  "current": 0, "achieved": false },
+		{ "type": "wins",           "target": 12, "current": 0, "achieved": false },
+		{ "type": "tournament_win", "target": 1,  "current": 0, "achieved": false },
+		{ "type": "top_form",       "target": 2,  "current": 0, "achieved": false },
+	]
+	return goals[randi() % goals.size()]
+
+
+# Called from _finalise_result to check if the goal was just met.
+func _check_season_goal(result: Dictionary) -> void:
+	if season_goal.get("achieved", false):
+		return
+	match season_goal["type"]:
+		"wins":
+			season_goal["current"] = total_wins
+			if total_wins >= season_goal["target"]:
+				season_goal["achieved"] = true
+		"tournament_win":
+			if result.get("is_tournament", false) and result["won"]:
+				season_goal["current"]  = 1
+				season_goal["achieved"] = true
+		"top_form":
+			var in_form: int = 0
+			for p: Player in players:
+				if p.form_label == "🔥 In Form":
+					in_form += 1
+			season_goal["current"] = in_form
+			if in_form >= season_goal["target"]:
+				season_goal["achieved"] = true
+
+
+# Returns display data for the UI. Called by get_prematch_context.
+func get_season_goal_display() -> Dictionary:
+	var desc: String
+	match season_goal["type"]:
+		"wins":
+			desc = "Win %d matches" % season_goal["target"]
+		"tournament_win":
+			desc = "Win a tournament"
+		"top_form":
+			desc = "Get %d players In Form" % season_goal["target"]
+		_:
+			desc = ""
+	return {
+		"description": desc,
+		"current":     season_goal.get("current", 0),
+		"target":      season_goal.get("target",  0),
+		"achieved":    season_goal.get("achieved", false),
+		"type":        season_goal.get("type", ""),
+	}
