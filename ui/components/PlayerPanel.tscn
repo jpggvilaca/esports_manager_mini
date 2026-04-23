@@ -35,6 +35,13 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = ""
 
+[node name="BioLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.50, 0.52, 0.60, 1.0)
+autowrap_mode = 3
+text = ""
+
 [node name="ContentRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 10

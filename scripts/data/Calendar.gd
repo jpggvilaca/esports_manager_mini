@@ -30,36 +30,36 @@ const TYPE_SOLO:       String = "solo"
 #   Weeks 19–24: Season finale (very hard, two tournaments)
 const WEEK_TEMPLATE: Array = [
 	# Block 1 — Early grind
-	{ "type": TYPE_NORMAL,     "opponent": 145, "label": "weak"     },  #  1
-	{ "type": TYPE_SOLO,       "opponent": 150, "label": "weak"     },  #  2 ★solo
-	{ "type": TYPE_NORMAL,     "opponent": 158, "label": "weak"     },  #  3
-	{ "type": TYPE_IMPORTANT,  "opponent": 168, "label": "average"  },  #  4 ★
-	{ "type": TYPE_NORMAL,     "opponent": 160, "label": "average"  },  #  5
-	{ "type": TYPE_SOLO,       "opponent": 165, "label": "average"  },  #  6 ★solo
+	{ "type": TYPE_NORMAL,     "opponent":  84, "label": "weak"     },  #  1
+	{ "type": TYPE_SOLO,       "opponent":  87, "label": "weak"     },  #  2 ★solo
+	{ "type": TYPE_NORMAL,     "opponent":  92, "label": "weak"     },  #  3
+	{ "type": TYPE_IMPORTANT,  "opponent":  97, "label": "average"  },  #  4 ★
+	{ "type": TYPE_NORMAL,     "opponent":  93, "label": "average"  },  #  5
+	{ "type": TYPE_SOLO,       "opponent":  96, "label": "average"  },  #  6 ★solo
 
 	# Block 2 — Mid-season
-	{ "type": TYPE_NORMAL,     "opponent": 170, "label": "average"  },  #  7
-	{ "type": TYPE_NORMAL,     "opponent": 175, "label": "average"  },  #  8
-	{ "type": TYPE_IMPORTANT,  "opponent": 185, "label": "strong"   },  #  9 ★
-	{ "type": TYPE_SOLO,       "opponent": 178, "label": "strong"   },  # 10 ★solo
-	{ "type": TYPE_NORMAL,     "opponent": 183, "label": "strong"   },  # 11
-	{ "type": TYPE_TOURNAMENT, "opponent": 205, "label": "dominant" },  # 12 🏆
+	{ "type": TYPE_NORMAL,     "opponent":  99, "label": "average"  },  #  7
+	{ "type": TYPE_NORMAL,     "opponent": 102, "label": "average"  },  #  8
+	{ "type": TYPE_IMPORTANT,  "opponent": 107, "label": "strong"   },  #  9 ★
+	{ "type": TYPE_SOLO,       "opponent": 103, "label": "strong"   },  # 10 ★solo
+	{ "type": TYPE_NORMAL,     "opponent": 106, "label": "strong"   },  # 11
+	{ "type": TYPE_TOURNAMENT, "opponent": 119, "label": "dominant" },  # 12 🏆
 
 	# Block 3 — Late season
-	{ "type": TYPE_NORMAL,     "opponent": 185, "label": "strong"   },  # 13
-	{ "type": TYPE_NORMAL,     "opponent": 190, "label": "strong"   },  # 14
-	{ "type": TYPE_IMPORTANT,  "opponent": 200, "label": "dominant" },  # 15 ★
-	{ "type": TYPE_SOLO,       "opponent": 192, "label": "strong"   },  # 16 ★solo
-	{ "type": TYPE_NORMAL,     "opponent": 198, "label": "dominant" },  # 17
-	{ "type": TYPE_IMPORTANT,  "opponent": 208, "label": "dominant" },  # 18 ★
+	{ "type": TYPE_NORMAL,     "opponent": 107, "label": "strong"   },  # 13
+	{ "type": TYPE_NORMAL,     "opponent": 110, "label": "strong"   },  # 14
+	{ "type": TYPE_IMPORTANT,  "opponent": 116, "label": "dominant" },  # 15 ★
+	{ "type": TYPE_SOLO,       "opponent": 111, "label": "strong"   },  # 16 ★solo
+	{ "type": TYPE_NORMAL,     "opponent": 115, "label": "dominant" },  # 17
+	{ "type": TYPE_IMPORTANT,  "opponent": 121, "label": "dominant" },  # 18 ★
 
 	# Block 4 — Season finale
-	{ "type": TYPE_NORMAL,     "opponent": 200, "label": "dominant" },  # 19
-	{ "type": TYPE_NORMAL,     "opponent": 205, "label": "dominant" },  # 20
-	{ "type": TYPE_IMPORTANT,  "opponent": 215, "label": "dominant" },  # 21 ★
-	{ "type": TYPE_NORMAL,     "opponent": 208, "label": "dominant" },  # 22
-	{ "type": TYPE_TOURNAMENT, "opponent": 225, "label": "dominant" },  # 23 🏆
-	{ "type": TYPE_TOURNAMENT, "opponent": 235, "label": "dominant" },  # 24 🏆🏆
+	{ "type": TYPE_NORMAL,     "opponent": 116, "label": "dominant" },  # 19
+	{ "type": TYPE_NORMAL,     "opponent": 119, "label": "dominant" },  # 20
+	{ "type": TYPE_IMPORTANT,  "opponent": 125, "label": "dominant" },  # 21 ★
+	{ "type": TYPE_NORMAL,     "opponent": 121, "label": "dominant" },  # 22
+	{ "type": TYPE_TOURNAMENT, "opponent": 131, "label": "dominant" },  # 23 🏆
+	{ "type": TYPE_TOURNAMENT, "opponent": 136, "label": "dominant" },  # 24 🏆🏆
 ]
 
 

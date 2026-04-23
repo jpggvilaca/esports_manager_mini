@@ -15,6 +15,12 @@ var primary_trait: String
 var minor_trait: String
 var planned_action: String
 
+# --- Character identity ---
+var bio: String = ""           # one-line character description shown in the player card
+
+# --- Second minor trait slot: unlocked via level milestones ---
+var minor_trait_2: String = "none"  # "none" until unlocked
+
 # --- Progression tracking (read by UI and FlavorGenerator, written by GameManager) ---
 var last_score: int      = 0
 var win_streak: int      = 0
@@ -59,3 +65,13 @@ func _init(
 	primary_trait  = p_primary
 	minor_trait    = p_minor
 	planned_action = ""  # no action selected — must be chosen before advancing
+
+
+# Returns all active minor traits as an Array (both slots).
+func get_minor_traits() -> Array[String]:
+	var result: Array[String] = []
+	if minor_trait != "none" and minor_trait != "":
+		result.append(minor_trait)
+	if minor_trait_2 != "none" and minor_trait_2 != "":
+		result.append(minor_trait_2)
+	return result

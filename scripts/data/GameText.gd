@@ -16,6 +16,10 @@ const ACTIONS: Dictionary = {
 		"label":       "🎮 Scrim",
 		"description": "Practice matches. Improves focus. No stamina cost.",
 	},
+	"intense": {
+		"label":       "🔥 Intense",
+		"description": "High-risk training. +5 skill, -20 stamina. Only when you're desperate.",
+	},
 }
 
 

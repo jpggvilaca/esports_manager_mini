@@ -1,5 +1,14 @@
 # scripts/managers/GameManager.gd
-# Owns game state and flow. Calls Simulation. No UI references.
+# ============================================================
+# THIN ORCHESTRATOR — owns player roster, week counter, and streaks.
+# All match execution is delegated to MatchDispatcher.
+# All goal tracking is delegated to SeasonGoalManager.
+#
+# TO TWEAK weekly action effects → edit apply_actions() below.
+# TO TWEAK match logic           → edit MatchDispatcher.gd
+# TO TWEAK XP / level-ups        → edit LevelSystem.gd
+# TO TWEAK season/quarter goals  → edit SeasonGoalManager.gd
+# ============================================================
 class_name GameManager
 extends RefCounted
 
@@ -7,9 +16,10 @@ var players: Array[Player]       = []
 var week: int                    = 1
 var team_win_streak: int         = 0
 var selected_solo_player: String = ""
-var season_goal: Dictionary      = {}  # set in _init, tracked throughout run
-var total_wins: int              = 0   # all-time match wins for goal tracking
 
+var goal_manager: SeasonGoalManager = null
+
+# Derived week/season — never set directly, always computed from week.
 var season: int:         get = _get_season
 var week_in_season: int: get = _get_week_in_season
 
@@ -17,46 +27,71 @@ func _get_season() -> int:         return Calendar.get_season(week)
 func _get_week_in_season() -> int: return Calendar.get_week_in_season(week)
 
 
+# ---------------------------------------------------------------------------
+# INITIALISATION
+# TO ADD / CHANGE PLAYERS → edit here. Player.new(name, skill, focus, stamina, morale, primary_trait, minor_trait)
+# ---------------------------------------------------------------------------
 func _init() -> void:
-	players = [
-		Player.new("Apex",  70, 80, 90, 75, "clutch",   "resilient"),
-		Player.new("Byte",  60, 60, 80, 70, "grinder",  "none"),
-		Player.new("Ghost", 55, 75, 85, 65, "volatile", "fragile"),
-	]
-	season_goal = _pick_season_goal()
+	var apex  := Player.new("Apex",  42, 50, 60, 55, "clutch",   "resilient")
+	var byte_ := Player.new("Byte",  35, 38, 55, 50, "grinder",  "none")
+	var ghost := Player.new("Ghost", 30, 45, 58, 45, "volatile", "fragile")
+	apex.bio  = "Mechanical prodigy who thrives under pressure — but drifts in routine weeks."
+	byte_.bio = "Grinds harder than anyone. Slow to start, relentless by mid-season."
+	ghost.bio = "Unpredictable and fragile. On a good day, unplayable. On a bad one, invisible."
+	players   = [apex, byte_, ghost]
+	goal_manager = SeasonGoalManager.new()
 
 
-func advance_week() -> Dictionary:
-	var cal_entry: Dictionary = Calendar.get_week(week)
-	var match_type: String    = cal_entry["type"]
+# ---------------------------------------------------------------------------
+# ADVANCE WEEK — master flow for one week tick.
+# Captures rest state → applies actions → runs match → updates goals.
+# ---------------------------------------------------------------------------
+func advance_week() -> MatchResult:
+	var cal_entry: Dictionary  = Calendar.get_week(week)
+	var match_type: String     = cal_entry["type"]
 
+	# Capture who is resting BEFORE apply_actions resets planned_action.
 	var resting_players: Array[String] = []
-	for player: Player in players:
-		if player.planned_action == "rest" or player.planned_action == "":
-			resting_players.append(player.player_name)
+	for p: Player in players:
+		if p.planned_action == "rest" or p.planned_action == "":
+			resting_players.append(p.player_name)
 
 	var has_active: bool = _team_has_active_action()
 	apply_actions()
 
-	var result: Dictionary = {}
-	match match_type:
-		Calendar.TYPE_SOLO:
-			result = run_solo_match()
-			_update_streaks(result["won"])
-		Calendar.TYPE_TOURNAMENT:
-			result = run_tournament_match(resting_players)
-			_update_streaks(result["won"])
-		_:
-			if has_active:
-				result = run_match(resting_players)
-				_update_streaks(result["won"])
-			else:
-				result = { "has_match": false }
+	# Pure rest week — no match this week.
+	if match_type != Calendar.TYPE_SOLO and match_type != Calendar.TYPE_TOURNAMENT and not has_active:
+		var rest_result := MatchResult.new()
+		rest_result.has_match = false
+		week += 1
+		return rest_result
+
+	var result: MatchResult = MatchDispatcher.run(
+		match_type, players, week, season, team_win_streak,
+		selected_solo_player, resting_players
+	)
+	_update_streaks(result.won)
+
+	var current_week_in_season: int = week_in_season  # capture before week increments
+	goal_manager.on_match_result(result, players, current_week_in_season)
+	goal_manager.check_quarter_boundary(current_week_in_season)
+
+	# Apply quarter bonus if triggered this week — carry it in the result for UI.
+	if goal_manager.quarter_bonus_pending:
+		var bonus_desc: String = goal_manager.quarter_bonus_description
+		goal_manager.consume_quarter_bonus(players)
+		result.quarter_bonus_description = bonus_desc
 
 	week += 1
+	# Refresh quarter goal after crossing a quarter boundary.
+	goal_manager.start_new_quarter(week_in_season)
 	return result
 
 
+# ---------------------------------------------------------------------------
+# PRE-MATCH CONTEXT — everything the UI needs before the player advances.
+# TO ADD new context fields for the UI → add them to the returned dict here.
+# ---------------------------------------------------------------------------
 func get_prematch_context() -> Dictionary:
 	var entry: Dictionary  = Calendar.get_week(week)
 	var match_type: String = entry["type"]
@@ -64,36 +99,34 @@ func get_prematch_context() -> Dictionary:
 
 	var conditions: Array = []
 	var has_tired:  bool  = false
-	for player: Player in players:
+	for p: Player in players:
+		# Stamina condition buckets — TO TWEAK thresholds, change these numbers.
 		var stamina_key: String
-		if player.stamina >= 70:   stamina_key = "fresh"
-		elif player.stamina >= 45: stamina_key = "ok"
-		elif player.stamina >= 25: stamina_key = "tired"
-		else:                      stamina_key = "exhausted"
-
+		if p.stamina >= 70:   stamina_key = "fresh"
+		elif p.stamina >= 45: stamina_key = "ok"
+		elif p.stamina >= 25: stamina_key = "tired"
+		else:                 stamina_key = "exhausted"
 		if stamina_key == "tired" or stamina_key == "exhausted":
 			has_tired = true
 
 		var morale_key: String
-		if player.morale >= 80:   morale_key = "confident"
-		elif player.morale < 40:  morale_key = "shaky"
-		else:                     morale_key = "neutral"
+		if p.morale >= 80:   morale_key = "confident"
+		elif p.morale < 40:  morale_key = "shaky"
+		else:                morale_key = "neutral"
 
 		conditions.append({
-			"name":         player.player_name,
+			"name":         p.player_name,
 			"stamina_key":  stamina_key,
 			"stamina_lbl":  GameText.STAMINA_CONDITION[stamina_key],
 			"morale_key":   morale_key,
 			"morale_lbl":   GameText.MORALE_CONDITION[morale_key],
-			"morale_delta": player.morale_delta,
+			"morale_delta": p.morale_delta,
 			"condition":    GameText.CONDITIONS.get(stamina_key, GameText.CONDITIONS["ready"]),
 		})
 
-	# Win estimate: fuzzy comparison of total team skill vs base opponent score.
 	var team_skill: int = 0
 	for p: Player in players:
 		team_skill += p.skill
-	var estimate: String = _win_estimate(team_skill, entry["opponent"])
 
 	return {
 		"week":          week_in_season,
@@ -105,340 +138,159 @@ func get_prematch_context() -> Dictionary:
 		"is_solo":       match_type == Calendar.TYPE_SOLO,
 		"opp_strength":  GameText.OPPONENT_STRENGTH.get(cal_label, cal_label),
 		"difficulty":    GameText.DIFFICULTY.get(cal_label, cal_label),
-		"win_estimate":  estimate,
+		"win_estimate":  MatchDispatcher.win_estimate(team_skill, entry["opponent"]),
 		"conditions":    conditions,
 		"has_tired":     has_tired,
 		"streak":        team_win_streak,
 		"game_over":     Calendar.is_game_over(week),
 		"player_names":  players.map(func(p): return p.player_name),
+		# rest_count is used by the warning label — counts unselected + rest actions
+		"rest_count":    players.filter(func(p): return p.planned_action == "rest" or p.planned_action == "").size(),
 	}
 
 
+# ---------------------------------------------------------------------------
+# ACTION SYSTEM — applies the chosen weekly action for each player.
+#
+# DESIGN INTENT (hybrid model):
+#   Actions = short-term impact on the NEXT match.
+#   Matches = the MAIN source of XP and long-term growth.
+#   Levels  = long-term stat improvements.
+#
+# Actions do NOT directly raise skill anymore — that happens via level-ups.
+# Actions adjust stamina/focus/morale, which affect THIS week's match score.
+#
+# TO ADD A NEW ACTION → add a new "action_id" branch in the match block below,
+#   add its XP value to LevelSystem.gd, and add its button in PlayerPanel.gd.
+# TO REBALANCE → adjust the stamina costs and focus gains in each branch.
+#
+# DIMINISHING RETURNS: _apply_with_dr() softens gains when a stat is already high.
+# ---------------------------------------------------------------------------
 func apply_actions() -> void:
-	for player: Player in players:
-		var prev_skill:   int = player.skill
-		var prev_stamina: int = player.stamina
-		var prev_morale:  int = player.morale
-		player.xp_delta = 0
+	# Count resting players for the collective focus penalty.
+	# If 2+ players rest, the whole team gets slightly less sharp (missed scrim).
+	var rest_count: int = 0
+	for p: Player in players:
+		if p.planned_action == "rest" or p.planned_action == "":
+			rest_count += 1
 
-		match player.planned_action:
+	for p: Player in players:
+		var prev_skill:   int = p.skill
+		var prev_stamina: int = p.stamina
+		var prev_morale:  int = p.morale
+		p.xp_delta = 0
+
+		match p.planned_action:
+
+			# TRAIN: invest in long-term growth via XP. Costs stamina.
+			# Skill does NOT grow here — it grows on level-up via LevelSystem.
+			# Grinders pay more stamina but train harder instinctively.
 			"train":
-				var skill_gain: int   = 3
-				var stamina_cost: int = 10
-				if player.primary_trait == "grinder":
-					skill_gain   += 1
-					stamina_cost += 3
-				elif player.primary_trait == "lazy":
-					skill_gain = max(skill_gain - 1, 1)
-				player.skill   = min(player.skill + skill_gain, 100)
-				player.stamina = max(player.stamina - stamina_cost, 0)
+				var stamina_cost: int = 13 if p.primary_trait == "grinder" else 10
+				p.stamina = max(p.stamina - stamina_cost, 0)
+
+			# REST: recover stamina and morale. Zero XP — purely a recovery tool.
+			# This should be the go-to when a player is tired before a big match.
 			"rest":
-				var stamina_gain: int = 15
-				if player.primary_trait == "lazy":
-					stamina_gain += 8
-				player.stamina = min(player.stamina + stamina_gain, 100)
-				player.morale  = min(player.morale + 5, 100)
+				var stamina_gain: int = 23 if p.primary_trait == "lazy" else 15
+				p.stamina = _apply_with_dr(p.stamina, stamina_gain, 80, 0.5)
+				p.morale  = _apply_with_dr(p.morale,  5,            80, 0.5)
+
+			# SCRIM: balanced option. Costs moderate stamina, improves focus.
+			# Focus reduces match score randomness — makes the next match more consistent.
 			"scrim":
-				player.focus = min(player.focus + 4, 100)
+				p.stamina = max(p.stamina - 8, 0)
+				p.focus   = _apply_with_dr(p.focus, 4, 70, 0.4)
 
-		LevelSystem.award_action_xp(player, player.planned_action)
-		player.skill_delta    = player.skill   - prev_skill
-		player.stamina_delta  = player.stamina - prev_stamina
-		player.morale_delta   = player.morale  - prev_morale
-		player.planned_action = "rest"
+			# INTENSE: high-risk push. Costs heavy stamina AND morale.
+			# Best used when a player is fresh and needs a short-term stat spike before a key match.
+			# Does NOT give direct skill — the XP does that over time.
+			"intense":
+				var stamina_cost: int = 20
+				p.stamina = max(p.stamina - stamina_cost, 0)
+				p.morale  = max(p.morale  - 5, 0)
+				# Small immediate focus bonus — you're sharpening for a specific enemy.
+				p.focus   = _apply_with_dr(p.focus, 3, 70, 0.4)
 
+		# Collective bench penalty: team loses a little focus when 2+ players rest.
+		# TO TWEAK: change the threshold (2) or the drain amount (2).
+		if rest_count >= 2:
+			p.focus = max(p.focus - 2, 1)
 
-# --- Standard match (normal / important) ---
-func run_match(resting_players: Array[String]) -> Dictionary:
-	var cal_entry: Dictionary = Calendar.get_week(week)
-	var match_type: String    = cal_entry["type"]
-	var is_important: bool    = match_type != Calendar.TYPE_NORMAL
-	var opponent_score: int   = cal_entry["opponent"] + randi_range(-10, 10)
-	var result: Dictionary    = Simulation.simulate_team(players, is_important, opponent_score)
-	var won: bool             = result["won"]
+		# Award action XP (small — matches are the main XP source).
+		LevelSystem.award_action_xp(p, p.planned_action)
 
-	var level_ups: Array = []
-	for player_entry: Dictionary in result["players"]:
-		var p: Player = player_entry["player"]
-		p.last_score  = player_entry["score"]
-		player_entry["rested"] = p.player_name in resting_players
-		var new_levels: Array = LevelSystem.award_match_xp_with_result(p, player_entry["label"], match_type, won)
-		level_ups.append_array(new_levels)
-		player_entry["xp_gained"]   = p.xp_delta
-		player_entry["level"]       = p.level
-		player_entry["xp_progress"] = LevelSystem.level_progress(p)
-
-	_apply_match_morale(won, Calendar.TYPE_NORMAL)
-	return _finalise_result(result, match_type, cal_entry["label"], level_ups)
+		# Track deltas for UI feedback (shown in conditions panel next week).
+		p.skill_delta    = p.skill   - prev_skill
+		p.stamina_delta  = p.stamina - prev_stamina
+		p.morale_delta   = p.morale  - prev_morale
+		p.planned_action = "rest"
 
 
-# --- Solo match ---
-func run_solo_match() -> Dictionary:
-	var cal_entry: Dictionary = Calendar.get_week(week)
-	var base_opp: int         = int(cal_entry["opponent"] * 0.65)
-	var opponent_score: int   = base_opp + randi_range(-8, 8)
+# ---------------------------------------------------------------------------
+# GOAL DISPLAY PASSTHROUGHS — UI only needs to call GameManager.
+# ---------------------------------------------------------------------------
 
-	var solo: Player = _find_player(selected_solo_player)
-	if solo == null:
-		solo = players[0]
-
-	var solo_score: int = Simulation.simulate_player(solo, true)
-	var flavor_data     = MatchFlavorGenerator.generate(solo, solo_score, true)
-	var won: bool       = solo_score >= opponent_score
-
-	var solo_flavor: String = GameText.pick(GameText.SOLO_WIN_FLAVOR if won else GameText.SOLO_LOSS_FLAVOR)
-
-	var player_entry: Dictionary = {
-		"player":  solo,
-		"score":   solo_score,
-		"label":   flavor_data["label"],
-		"flavor":  solo_flavor,
-		"rested":  false,
-	}
-
-	var all_entries: Array = []
-	for p: Player in players:
-		if p == solo:
-			all_entries.append(player_entry)
-		else:
-			all_entries.append({ "player": p, "score": 0, "label": "", "flavor": "", "rested": true })
-
-	var level_ups: Array = LevelSystem.award_match_xp_with_result(solo, flavor_data["label"], "important", won)
-	player_entry["xp_gained"]   = solo.xp_delta
-	player_entry["level"]       = solo.level
-	player_entry["xp_progress"] = LevelSystem.level_progress(solo)
-
-	# Only the solo player gets morale consequence.
-	var morale_change: int = 5 if won else -10
-	solo.morale       = clamp(solo.morale + morale_change, 0, 100)
-	solo.morale_delta = morale_change
-
-	var result: Dictionary = {
-		"won":            won,
-		"team_score":     solo_score,
-		"opponent_score": opponent_score,
-		"players":        all_entries,
-	}
-	result = _finalise_result(result, Calendar.TYPE_SOLO, cal_entry["label"], level_ups)
-	result["is_solo"]    = true
-	result["mvp_name"]   = solo.player_name
-	result["worst_name"] = ""
-	return result
+# Returns season goal state for the header panel.
+func get_season_goal_display() -> Dictionary:
+	return goal_manager.get_display()
 
 
-# --- Tournament match: 3 rounds with escalating opponent ---
-func run_tournament_match(resting_players: Array[String]) -> Dictionary:
-	const ROUNDS:           int   = 3
-	const STAMINA_RECOVERY: int   = 5
-	const OPP_SCALE: Array        = [1.0, 1.10, 1.20]
-
-	var cal_entry: Dictionary = Calendar.get_week(week)
-	var base_opp: int         = cal_entry["opponent"]
-
-	var all_level_ups: Array = []
-	var rounds_won: int      = 0
-	var round_results: Array = []
-	var lost_in_round: int   = -1
-
-	for round_idx in ROUNDS:
-		var opp: int = int(base_opp * OPP_SCALE[round_idx]) + randi_range(-12, 12)
-		var round_sim: Dictionary = Simulation.simulate_team(players, true, opp)
-		var round_won: bool = round_sim["won"]
-		round_results.append({
-			"round": round_idx + 1,
-			"won":   round_won,
-			"team_score":     round_sim["team_score"],
-			"opponent_score": opp,
-			"players":        round_sim["players"],
-		})
-
-		if round_won:
-			rounds_won += 1
-		else:
-			lost_in_round = round_idx + 1
-			break
-
-		if round_idx < ROUNDS - 1:
-			for p: Player in players:
-				p.stamina = min(p.stamina + STAMINA_RECOVERY, 100)
-
-	var overall_won: bool       = lost_in_round == -1
-	var final_round: Dictionary = round_results[-1]
-	var result: Dictionary = {
-		"won":            overall_won,
-		"team_score":     final_round["team_score"],
-		"opponent_score": final_round["opponent_score"],
-		"players":        final_round["players"],
-	}
-
-	for player_entry: Dictionary in result["players"]:
-		var p: Player = player_entry["player"]
-		p.last_score  = player_entry["score"]
-		player_entry["rested"] = p.player_name in resting_players
-		var new_levels: Array = LevelSystem.award_match_xp_with_result(p, player_entry["label"], Calendar.TYPE_TOURNAMENT, overall_won)
-		all_level_ups.append_array(new_levels)
-		player_entry["xp_gained"]   = p.xp_delta
-		player_entry["level"]       = p.level
-		player_entry["xp_progress"] = LevelSystem.level_progress(p)
-
-	# Tournament morale swings harder.
-	_apply_match_morale(overall_won, Calendar.TYPE_TOURNAMENT)
-	result = _finalise_result(result, Calendar.TYPE_TOURNAMENT, cal_entry["label"], all_level_ups)
-	result["is_tournament"]     = true
-	result["rounds_won"]        = rounds_won
-	result["rounds_total"]      = ROUNDS if overall_won else lost_in_round
-	result["lost_in_round"]     = lost_in_round
-	result["tournament_rounds"] = round_results
-	result["round_summary"]     = _tournament_summary(overall_won, rounds_won, ROUNDS, lost_in_round)
-	return result
+# Returns quarter goal state for the header panel.
+func get_quarter_goal_display() -> Dictionary:
+	return goal_manager.get_quarter_display()
 
 
-# --- Helpers ---
+# ---------------------------------------------------------------------------
+# PRIVATE HELPERS
+# ---------------------------------------------------------------------------
 
-func _apply_match_morale(won: bool, match_type: String) -> void:
-	# Morale change per player. Tournament loss hurts more — there was more at stake.
-	var gain: int
-	var loss: int
-	if match_type == Calendar.TYPE_TOURNAMENT:
-		gain = 8
-		loss = -15
-	else:
-		gain = 5
-		loss = -10
-
-	var delta: int = gain if won else loss
-	for p: Player in players:
-		var prev: int   = p.morale
-		p.morale        = clamp(p.morale + delta, 0, 100)
-		p.morale_delta  = p.morale - prev  # track for UI feedback
-
-
-func _win_estimate(team_skill: int, opponent_base: int) -> String:
-	# team_skill is the sum of all player skills (~165–210 range for 3 players at avg 55–70).
-	# opponent_base is already per-player-equivalent (the score one team achieves).
-	# We compare team_skill (3 players combined) to opponent_base * 3 to keep scale consistent.
-	var ratio: float = float(team_skill) / float(opponent_base * 3)
-	if ratio >= 1.10:   return GameText.ESTIMATE_FAVORED
-	elif ratio >= 0.90: return GameText.ESTIMATE_EVEN
-	else:               return GameText.ESTIMATE_UNDERDOG
-
-
-func _tournament_summary(won: bool, rounds_won: int, total: int, lost_in_round: int) -> String:
-	if won:
-		return GameText.TOURNAMENT_WIN_ALL if rounds_won == total else GameText.TOURNAMENT_WIN_CLOSE
-	return GameText.TOURNAMENT_LOSS_ROUND % lost_in_round
-
-
-func _finalise_result(result: Dictionary, match_type: String, opp_label: String, level_ups: Array) -> Dictionary:
-	result["is_important"] = match_type != Calendar.TYPE_NORMAL
-	result["match_type"]   = match_type
-	result["type_label"]   = GameText.MATCH_TYPE[match_type]
-	result["week"]         = week_in_season
-	result["season"]       = season
-	result["opp_strength"] = opp_label
-	result["streak"]       = team_win_streak
-	result["game_over"]    = Calendar.is_game_over(week + 1)
-	result["level_ups"]    = level_ups
-
-	var sorted: Array = result["players"].duplicate()
-	sorted.sort_custom(func(a, b): return a["score"] > b["score"])
-	var active: Array = sorted.filter(func(e): return not e.get("rested", false))
-	result["mvp_name"]   = active[0]["player"].player_name if active.size() > 0 else ""
-	result["worst_name"] = active[-1]["player"].player_name if active.size() > 1 else ""
-
-	# Update form history for active players.
-	for player_entry: Dictionary in result["players"]:
-		if not player_entry.get("rested", false):
-			var p: Player = player_entry["player"]
-			p.form_history.append(player_entry["label"])
-			if p.form_history.size() > 3:
-				p.form_history.pop_front()
-
-	# Track wins for season goal.
-	if result["won"]:
-		total_wins += 1
-	_check_season_goal(result)
-
-	return result
-
-
-func _find_player(name: String) -> Player:
-	for p: Player in players:
-		if p.player_name == name:
-			return p
-	return null
-
-
+# Returns true if at least one player chose an active (match-qualifying) action.
+# Solo/tournament matches always run regardless of this flag.
 func _team_has_active_action() -> bool:
-	for player: Player in players:
-		if player.planned_action == "train" or player.planned_action == "scrim":
+	for p: Player in players:
+		if p.planned_action in ["train", "scrim", "intense"]:
 			return true
 	return false
 
 
+# Updates win/loss streaks for the team and all players after a match.
+# TO TWEAK streak logic → edit here.
 func _update_streaks(won: bool) -> void:
 	if won:
 		team_win_streak = max(team_win_streak + 1, 1)
-		for player: Player in players:
-			player.win_streak = max(player.win_streak + 1, 1)
+		for p: Player in players:
+			p.win_streak = max(p.win_streak + 1, 1)
 	else:
 		team_win_streak = min(team_win_streak - 1, -1)
-		for player: Player in players:
-			player.win_streak = min(player.win_streak - 1, -1)
+		for p: Player in players:
+			p.win_streak = min(p.win_streak - 1, -1)
 
 
-# --- Season goal ---
-
-# Pick a random goal at session start.
-func _pick_season_goal() -> Dictionary:
-	var goals: Array = [
-		{ "type": "wins",           "target": 8,  "current": 0, "achieved": false },
-		{ "type": "wins",           "target": 12, "current": 0, "achieved": false },
-		{ "type": "tournament_win", "target": 1,  "current": 0, "achieved": false },
-		{ "type": "top_form",       "target": 2,  "current": 0, "achieved": false },
-	]
-	return goals[randi() % goals.size()]
-
-
-# Called from _finalise_result to check if the goal was just met.
-func _check_season_goal(result: Dictionary) -> void:
-	if season_goal.get("achieved", false):
-		return
-	match season_goal["type"]:
-		"wins":
-			season_goal["current"] = total_wins
-			if total_wins >= season_goal["target"]:
-				season_goal["achieved"] = true
-		"tournament_win":
-			if result.get("is_tournament", false) and result["won"]:
-				season_goal["current"]  = 1
-				season_goal["achieved"] = true
-		"top_form":
-			var in_form: int = 0
-			for p: Player in players:
-				if p.form_label == "🔥 In Form":
-					in_form += 1
-			season_goal["current"] = in_form
-			if in_form >= season_goal["target"]:
-				season_goal["achieved"] = true
-
-
-# Returns display data for the UI. Called by get_prematch_context.
-func get_season_goal_display() -> Dictionary:
-	var desc: String
-	match season_goal["type"]:
-		"wins":
-			desc = "Win %d matches" % season_goal["target"]
-		"tournament_win":
-			desc = "Win a tournament"
-		"top_form":
-			desc = "Get %d players In Form" % season_goal["target"]
-		_:
-			desc = ""
-	return {
-		"description": desc,
-		"current":     season_goal.get("current", 0),
-		"target":      season_goal.get("target",  0),
-		"achieved":    season_goal.get("achieved", false),
-		"type":        season_goal.get("type", ""),
-	}
+# ---------------------------------------------------------------------------
+# DIMINISHING RETURNS — prevents stats from scaling too fast.
+#
+# stat:       current stat value
+# raw_gain:   the full gain before DR
+# soft_cap:   above this value, DR kicks in
+# dr_factor:  fraction of gain kept above soft_cap (e.g. 0.5 = half as effective)
+#
+# Example: _apply_with_dr(75, 10, 70, 0.5)
+#   → 5 points below cap at full rate = +5
+#   → 5 points above cap at 50% rate  = +2
+#   → total = 77 + 2 = 79 (instead of 85)
+#
+# TO TUNE: raise soft_cap to push DR later, lower dr_factor to slow gains more.
+# ---------------------------------------------------------------------------
+static func _apply_with_dr(stat: int, raw_gain: int, soft_cap: int, dr_factor: float) -> int:
+	if stat >= soft_cap:
+		# Already above cap — apply full DR.
+		return min(stat + int(raw_gain * dr_factor), 100)
+	var headroom: int = soft_cap - stat
+	if raw_gain <= headroom:
+		# Entire gain fits below the cap — no DR needed.
+		return min(stat + raw_gain, 100)
+	# Split: part below cap at full rate, part above at reduced rate.
+	var below_cap: int = headroom
+	var above_cap: int = raw_gain - headroom
+	return min(stat + below_cap + int(above_cap * dr_factor), 100)
