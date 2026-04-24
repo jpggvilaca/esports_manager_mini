@@ -82,3 +82,16 @@ offset_right = 130.0
 offset_bottom = 906.0
 text = "📋  Open Management"
 theme_override_font_sizes/font_size = 17
+
+[node name="MarketBtn" type="Button" parent="UI"]
+anchors_preset = 4
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -130.0
+offset_top = 916.0
+offset_right = 130.0
+offset_bottom = 958.0
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.65, 0.90, 0.65, 1.0)
+text = "📊  Player Market"
+visible = false

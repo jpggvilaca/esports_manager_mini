@@ -31,7 +31,7 @@ func refresh(player: Player) -> void:
 
 func _set_bar(bar: ProgressBar, val_label: Label, value: int) -> void:
 	bar.value       = value
-	val_label.text  = str(value)
+	val_label.text  = "%d/100" % value
 	bar.modulate    = _color_for(value)
 
 

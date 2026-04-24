@@ -67,7 +67,7 @@ func _build_action_buttons() -> void:
 func _refresh_display() -> void:
 	_name_label.text  = _player.player_name
 	_trait_badge.text = "[%s]" % _player.primary_trait
-	_level_label.text = GameText.LEVEL_BADGE % _player.level
+	_level_label.text = "Lv.%d  ·  %d XP" % [_player.level, _player.xp]
 	_form_label.text  = _player.form_label
 	_bio_label.text   = _player.bio
 	_stat_bars.refresh(_player)

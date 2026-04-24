@@ -304,8 +304,7 @@ func prepare_new_week() -> void:
 	_advance_btn.text     = GameText.ADVANCE_BTN_NORMAL
 	_actions_chosen       = 0
 	_game.selected_solo_player = ""
-	for panel in _player_list.get_children():
-		panel.reset_action()
+	_rebuild_player_panels()
 	_refresh_prematch()
 	_update_advance_lock()
 	# Broadcast goal state immediately on re-entry so header is current.
@@ -313,3 +312,9 @@ func prepare_new_week() -> void:
 		"season":  _game.get_season_goal_display(),
 		"quarter": _game.get_quarter_goal_display(),
 	})
+
+
+func _rebuild_player_panels() -> void:
+	for child in _player_list.get_children():
+		child.queue_free()
+	_build_player_panels()

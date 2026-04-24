@@ -1,0 +1,134 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/components/MarketOverlay.gd" id="1_mo"]
+
+[node name="MarketOverlay" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mo")
+
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.05, 0.08, 0.96)
+
+[node name="OuterMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="OuterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="TitleRow" type="HBoxContainer" parent="OuterMargin/VBox"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="OuterMargin/VBox/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 26
+theme_override_colors/font_color = Color(0.90, 0.90, 0.95, 1.0)
+text = "📋  Player Market"
+
+[node name="SlotsLabel" type="Label" parent="OuterMargin/VBox/TitleRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.65, 0.80, 1.0, 1.0)
+text = "Slots: ●●○"
+
+[node name="SubtitleLabel" type="Label" parent="OuterMargin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.55, 0.58, 0.65, 1.0)
+text = "Click a candidate to recruit. Replacement is permanent."
+
+[node name="ContentRow" type="HBoxContainer" parent="OuterMargin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 24
+
+[node name="RosterColumn" type="VBoxContainer" parent="OuterMargin/VBox/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="RosterHeader" type="Label" parent="OuterMargin/VBox/ContentRow/RosterColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.65, 0.65, 0.70, 1.0)
+text = "YOUR TEAM"
+
+[node name="RosterList" type="VBoxContainer" parent="OuterMargin/VBox/ContentRow/RosterColumn"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Divider" type="VSeparator" parent="OuterMargin/VBox/ContentRow"]
+layout_mode = 2
+
+[node name="CandidatesColumn" type="VBoxContainer" parent="OuterMargin/VBox/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="CandidatesHeader" type="Label" parent="OuterMargin/VBox/ContentRow/CandidatesColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.65, 0.65, 0.70, 1.0)
+text = "AVAILABLE"
+
+[node name="CandidatesList" type="VBoxContainer" parent="OuterMargin/VBox/ContentRow/CandidatesColumn"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ConfirmPanel" type="PanelContainer" parent="OuterMargin/VBox"]
+visible = false
+layout_mode = 2
+
+[node name="ConfirmMargin" type="MarginContainer" parent="OuterMargin/VBox/ConfirmPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="ConfirmVBox" type="VBoxContainer" parent="OuterMargin/VBox/ConfirmPanel/ConfirmMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ConfirmLabel" type="Label" parent="OuterMargin/VBox/ConfirmPanel/ConfirmMargin/ConfirmVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(1.0, 0.85, 0.40, 1.0)
+autowrap_mode = 3
+text = "Replace who?"
+
+[node name="ConfirmButtonRow" type="HBoxContainer" parent="OuterMargin/VBox/ConfirmPanel/ConfirmMargin/ConfirmVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CancelConfirmBtn" type="Button" parent="OuterMargin/VBox/ConfirmPanel/ConfirmMargin/ConfirmVBox"]
+layout_mode = 2
+text = "← Cancel"
+
+[node name="CloseBtn" type="Button" parent="OuterMargin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Close Market"

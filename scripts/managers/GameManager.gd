@@ -19,6 +19,10 @@ var selected_solo_player: String = ""
 
 var goal_manager: SeasonGoalManager = null
 
+# Market system — generates candidates and handles replacements.
+# TO TWEAK market timing and slot budget → edit PlayerMarket.gd
+var market: PlayerMarket = null
+
 # Derived week/season — never set directly, always computed from week.
 var season: int:         get = _get_season
 var week_in_season: int: get = _get_week_in_season
@@ -40,6 +44,7 @@ func _init() -> void:
 	ghost.bio = "Unpredictable and fragile. On a good day, unplayable. On a bad one, invisible."
 	players   = [apex, byte_, ghost]
 	goal_manager = SeasonGoalManager.new()
+	market       = PlayerMarket.new()
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +229,7 @@ func apply_actions() -> void:
 		p.skill_delta    = p.skill   - prev_skill
 		p.stamina_delta  = p.stamina - prev_stamina
 		p.morale_delta   = p.morale  - prev_morale
-		p.planned_action = "rest"
+		p.planned_action = ""
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +244,42 @@ func get_season_goal_display() -> Dictionary:
 # Returns quarter goal state for the header panel.
 func get_quarter_goal_display() -> Dictionary:
 	return goal_manager.get_quarter_display()
+
+
+# ---------------------------------------------------------------------------
+# MARKET PASSTHROUGHS
+# The UI calls these — GameManager stays the single interface point.
+# ---------------------------------------------------------------------------
+
+# Returns true if the market should be available this week.
+# Used by GameWorld to show/hide the Market button.
+func is_market_available() -> bool:
+	var next_event: Dictionary = Calendar.get_next_event(week)
+	return market.is_available(week_in_season, next_event)
+
+
+# Generates and returns fresh market candidates.
+# Call this when the player opens the market UI.
+func open_market() -> Array:
+	return market.generate_candidates(players)
+
+
+# Replaces players[replace_index] with candidate.
+# Returns false if out of slots or invalid index.
+func hire_candidate(candidate: Player, replace_index: int) -> bool:
+	var success: bool = market.replace_player(players, candidate, replace_index)
+	# After a hire the PlayerPanel cards need to refresh — handled by Main.gd.
+	return success
+
+
+# Returns a display string for remaining market slots, e.g. "●●○".
+func market_slots_display() -> String:
+	return market.slots_display()
+
+
+# Returns true if at least one replacement slot remains this season.
+func market_has_slots() -> bool:
+	return market.has_slots()
 
 
 # ---------------------------------------------------------------------------
