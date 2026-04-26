@@ -130,7 +130,7 @@ func _check_season(result: MatchResult, players: Array[Player]) -> void:
 				season_goal["achieved"] = true
 
 
-func _check_quarter(result: MatchResult, players: Array[Player], week_in_season: int) -> void:
+func _check_quarter(result: MatchResult, players: Array[Player], _week_in_season: int) -> void:
 	if quarter_goal.get("achieved", false):
 		return
 	match quarter_goal["type"]:

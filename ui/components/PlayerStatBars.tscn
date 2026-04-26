@@ -25,7 +25,7 @@ show_percentage = false
 
 [node name="SkillVal" type="Label" parent="SkillRow"]
 layout_mode = 2
-custom_minimum_size = Vector2(24, 0)
+custom_minimum_size = Vector2(32, 0)
 theme_override_font_sizes/font_size = 11
 horizontal_alignment = 2
 
@@ -48,7 +48,7 @@ show_percentage = false
 
 [node name="StaminaVal" type="Label" parent="StaminaRow"]
 layout_mode = 2
-custom_minimum_size = Vector2(24, 0)
+custom_minimum_size = Vector2(32, 0)
 theme_override_font_sizes/font_size = 11
 horizontal_alignment = 2
 
@@ -71,6 +71,31 @@ show_percentage = false
 
 [node name="FocusVal" type="Label" parent="FocusRow"]
 layout_mode = 2
-custom_minimum_size = Vector2(24, 0)
+custom_minimum_size = Vector2(32, 0)
 theme_override_font_sizes/font_size = 11
+horizontal_alignment = 2
+
+[node name="XPRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="XPLbl" type="Label" parent="XPRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(52, 0)
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.55, 0.80, 1.0, 1.0)
+text = "XP"
+
+[node name="XPBar" type="ProgressBar" parent="XPRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 12)
+max_value = 100.0
+show_percentage = false
+
+[node name="XPVal" type="Label" parent="XPRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(32, 0)
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.55, 0.80, 1.0, 1.0)
 horizontal_alignment = 2

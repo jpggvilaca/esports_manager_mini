@@ -19,6 +19,7 @@ theme_override_constants/separation = 8
 
 [node name="HeaderRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
+theme_override_constants/separation = 6
 
 [node name="NameLabel" type="Label" parent="Margin/VBox/HeaderRow"]
 layout_mode = 2
@@ -33,14 +34,12 @@ theme_override_colors/font_color = Color(0.6, 0.85, 1.0, 1.0)
 [node name="FormLabel" type="Label" parent="Margin/VBox/HeaderRow"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = ""
 
 [node name="BioLabel" type="Label" parent="Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.50, 0.52, 0.60, 1.0)
 autowrap_mode = 3
-text = ""
 
 [node name="ContentRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
@@ -68,17 +67,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 
-[node name="ActionRow" type="HBoxContainer" parent="Margin/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="ActionLabel" type="Label" parent="Margin/VBox/ActionRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1.0)
-text = "Prepare:"
-
-[node name="ActionButtons" type="HBoxContainer" parent="Margin/VBox/ActionRow"]
+[node name="ActionButtons" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 6

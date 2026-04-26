@@ -2,33 +2,28 @@ class_name GameText
 extends RefCounted
 
 
-# --- Action descriptions (shown in UI tooltips / pre-match panel) ---
+# --- Action descriptions ---
 const ACTIONS: Dictionary = {
 	"train": {
-		"label":       "⚡ Train",
-		"description": "Improves skill. Costs stamina.",
+		"label":       "⚡ Grind",
+		"description": "Heavy XP investment. Costs stamina. Builds burnout — too many in a row will hurt on big match day.",
 	},
 	"rest": {
 		"label":       "💤 Rest",
-		"description": "Recovers stamina and morale. No match.",
+		"description": "Recovers stamina and morale. Zero XP. Warning: 3+ rest weeks in a row drains competitive hunger.",
 	},
 	"scrim": {
 		"label":       "🎮 Scrim",
-		"description": "Practice matches. Improves focus. No stamina cost.",
+		"description": "Balanced. Improves focus, keeps hunger sharp. Costs stamina but less than grinding.",
 	},
 	"intense": {
 		"label":       "🔥 Intense",
-		"description": "High-risk training. +5 skill, -20 stamina. Only when you're desperate.",
+		"description": "Desperate measure. Huge burnout cost. Only when you need one more push before a big match.",
 	},
 }
 
 
-# --- Preparation phase framing ---
-const PREP_PHASE_HEADER:   String = "Prepare for Match"
-const PREP_PHASE_SUBTITLE: String = "Choose how each player prepares this week."
-const PREP_ACTION_LABEL:   String = "Prepare:"
-
-# --- Week context lines (shown below the week/match-type header) ---
+# --- Week context lines ---
 const WEEK_CONTEXT: Dictionary = {
 	"normal":     "Another week of practice and competition.",
 	"important":  "A crucial match is coming up. Preparation matters.",
@@ -36,10 +31,8 @@ const WEEK_CONTEXT: Dictionary = {
 	"solo":       "One player carries the team. Choose wisely.",
 }
 
-# --- Week + match type header format ---
-const WEEK_HEADER: String = "Week %d — %s"  # e.g. "Week 4 — IMPORTANT MATCH"
+const WEEK_HEADER: String = "Week %d — %s"
 
-# --- Match type display names (uppercase, for the week header) ---
 const MATCH_TYPE_UPPER: Dictionary = {
 	"normal":     "REGULAR MATCH",
 	"important":  "IMPORTANT MATCH",
@@ -48,7 +41,7 @@ const MATCH_TYPE_UPPER: Dictionary = {
 }
 
 
-# --- Performance labels (indexed by tier: 0=low, 1=mid, 2=high) ---
+# --- Performance labels ---
 const PERF_LABELS: Array[String] = [
 	"😬 Struggled",
 	"✅ Solid",
@@ -65,7 +58,7 @@ const CONDITIONS: Dictionary = {
 }
 
 
-# --- Stamina condition labels (readable, shown in pre-match) ---
+# --- Stamina condition labels ---
 const STAMINA_CONDITION: Dictionary = {
 	"fresh":     "Fresh",
 	"ok":        "OK",
@@ -77,10 +70,10 @@ const STAMINA_CONDITION: Dictionary = {
 const MORALE_CONDITION: Dictionary = {
 	"confident": "Confident",
 	"shaky":     "Shaky",
-	"neutral":   "",   # don't show anything if unremarkable
+	"neutral":   "",
 }
 
-# --- Opponent difficulty labels (maps calendar label → display) ---
+# --- Opponent difficulty labels ---
 const DIFFICULTY: Dictionary = {
 	"weak":     "Easy",
 	"average":  "Medium",
@@ -88,8 +81,6 @@ const DIFFICULTY: Dictionary = {
 	"dominant": "Very Hard",
 }
 
-
-# --- Opponent strength labels ---
 const OPPONENT_STRENGTH: Dictionary = {
 	"weak":     "Weak",
 	"average":  "Average",
@@ -99,10 +90,148 @@ const OPPONENT_STRENGTH: Dictionary = {
 
 
 # --- Streak labels ---
-const STREAK_ON_ROLL:    String = "🔥 on a roll"
-const STREAK_COLD:       String = "❄️ cold streak"
-const STREAK_WIN_PREFIX: String = "🔥 %d-win streak"
-const STREAK_LOSS_PREFIX: String = "❄️ %d-loss streak"
+const STREAK_ON_ROLL:  String = "🔥 on a roll"
+const STREAK_COLD:     String = "❄️ cold streak"
+
+
+# ============================================================
+# TRAIT DISPLAY — icons + descriptions
+# Used everywhere: hub cards, roster, resolution screen, pre-match info.
+#
+# Icon assignment (using numbered icons from assets/icons/):
+#   aggressive  → 🗡  icon 1  (sword — attack archetype)
+#   tactical    → 🧠  icon 2  (brain — strategy archetype)
+#   focused     → 🎯  icon 3  (target — precision archetype)
+#   clutch      → ⚡  icon 4  (lightning — pressure archetype)
+#   resilient   → 🛡  icon 5  (shield — endurance archetype)
+#
+# Performance traits (existing) also get icons for roster/hub display:
+#   clutch      → ⚡  (maps to clutch match trait)
+#   choker      → 😰
+#   grinder     → ⚙️
+#   lazy        → 💤
+#   consistent  → 📐
+#   volatile    → 🌀
+# ============================================================
+
+# Icon prefix shown before trait name everywhere in the UI.
+# Format: "ICON  " (emoji + two spaces for visual spacing in Labels)
+const TRAIT_ICONS: Dictionary = {
+	# Performance traits (Player.primary_trait)
+	"clutch":      "⚡  ",
+	"choker":      "😰  ",
+	"grinder":     "⚙️  ",
+	"lazy":        "💤  ",
+	"consistent":  "🎯  ",
+	"volatile":    "🌀  ",
+	"none":        "",
+	# Match traits (TraitMatchup — shown on opponent + matchup panels)
+	"aggressive":  "🗡️  ",
+	"tactical":    "🧠  ",
+	"focused":     "🎯  ",
+	"resilient":   "🛡️  ",
+}
+
+# Short display name for each trait (icon + name).
+# Use trait_label() helper to build the full string.
+const TRAIT_NAMES: Dictionary = {
+	# Performance traits
+	"clutch":      "Clutch",
+	"choker":      "Choker",
+	"grinder":     "Grinder",
+	"lazy":        "Lazy",
+	"consistent":  "Consistent",
+	"volatile":    "Volatile",
+	"none":        "Balanced",
+	# Match traits
+	"aggressive":  "Aggressive",
+	"tactical":    "Tactical",
+	"focused":     "Focused",
+	"resilient":   "Resilient",
+}
+
+# Full one-line tooltip descriptions for roster/pre-match panel.
+const TRAIT_DESCRIPTIONS: Dictionary = {
+	"clutch":      "Clutch — peaks under pressure",
+	"choker":      "Chokes under pressure, thrives in easy games",
+	"grinder":     "Grinder — steady improvement through hard work",
+	"lazy":        "Lazy — needs rest to perform well",
+	"consistent":  "Consistent — reliable, low variance",
+	"volatile":    "Volatile — unpredictable, big highs and lows",
+	"none":        "Balanced",
+	# Match traits (shown in opponent panel)
+	"aggressive":  "Aggressive — strong in fast/pressure play",
+	"tactical":    "Tactical — strong in structured, control play",
+	"focused":     "Focused — consistent, reduces mistakes",
+	"resilient":   "Resilient — strong in long endurance matches",
+}
+
+# Match trait beat/weakness hints (shown in pre-match panel as tooltips).
+const TRAIT_BEATS: Dictionary = {
+	"aggressive":  "Beats: Focused",
+	"tactical":    "Beats: Aggressive",
+	"focused":     "Beats: Tactical, Clutch",
+	"clutch":      "Beats: Resilient",
+	"resilient":   "Beats: Clutch",
+}
+
+const TRAIT_WEAK: Dictionary = {
+	"aggressive":  "Weak vs: Tactical, Resilient",
+	"tactical":    "Weak vs: Focused",
+	"focused":     "Weak vs: Aggressive",
+	"clutch":      "Weak vs: Focused",
+	"resilient":   "Weak vs: Aggressive, Clutch",
+}
+
+# Returns "ICON  Name" for display in Labels.
+static func trait_label(trait_key: String) -> String:
+	var icon: String = TRAIT_ICONS.get(trait_key, "")
+	var name: String = TRAIT_NAMES.get(trait_key, trait_key.capitalize())
+	return icon + name
+
+
+# ============================================================
+# SITUATION DISPLAY
+# Each situation has an icon, short name, and one-line description.
+# ============================================================
+
+const SITUATION_ICONS: Dictionary = {
+	"early_pressure":  "💥",
+	"control_phase":   "🧩",
+	"precision_phase": "🔬",
+	"clutch_moment":   "⚡",
+	"endurance_phase": "🏃",
+}
+
+const SITUATION_NAMES: Dictionary = {
+	"early_pressure":  "Early Pressure",
+	"control_phase":   "Control Phase",
+	"precision_phase": "Precision Phase",
+	"clutch_moment":   "Clutch Moment",
+	"endurance_phase": "Endurance Phase",
+}
+
+const SITUATION_DESC: Dictionary = {
+	"early_pressure":  "Fast opener — rewards aggressive plays",
+	"control_phase":   "Slow, structured — rewards tactical reads",
+	"precision_phase": "No room for mistakes — rewards focus",
+	"clutch_moment":   "Late-game pressure — rewards clutch players",
+	"endurance_phase": "Long grind — rewards resilient players",
+}
+
+const SITUATION_FAVORS: Dictionary = {
+	"early_pressure":  "aggressive",
+	"control_phase":   "tactical",
+	"precision_phase": "focused",
+	"clutch_moment":   "clutch",
+	"endurance_phase": "resilient",
+}
+
+# Returns "ICON  Name" for a situation.
+static func situation_label(situation_key: String) -> String:
+	var icon: String = SITUATION_ICONS.get(situation_key, "❓")
+	var name: String = SITUATION_NAMES.get(situation_key, situation_key.capitalize())
+	return icon + "  " + name
 
 
 # --- Match outcome labels ---
@@ -111,13 +240,10 @@ const OUTCOME_DEFEAT:      String = "❌  DEFEAT"
 const OUTCOME_CLOSE:       String = " — so close!"
 const OUTCOME_REST_WEEK:   String = "💤  Rest Week"
 const OUTCOME_REST_DESC:   String = "No match this week. Players recovered."
-const MATCH_IMPORTANT:     String = "🏆 IMPORTANT MATCH"
 const MATCH_SCORE_LINE:    String = "Your team  %d pts   vs   Enemy  %d pts"
-const MATCH_OPP_PREFIX:    String = "Opponent: %s"
-const GAME_OVER_NOTICE:    String = "(Final season reached)"
 const GAME_OVER_BTN:       String = "Season limit reached"
 
-# --- Match type labels (Calendar) ---
+# --- Match type labels ---
 const MATCH_TYPE: Dictionary = {
 	"normal":     "Regular Match",
 	"important":  "⭐ Important Match",
@@ -127,7 +253,7 @@ const MATCH_TYPE: Dictionary = {
 
 # --- Solo match strings ---
 const SOLO_PICK_PROMPT:  String = "Choose your solo player:"
-const SOLO_WIN_FLAVOR:   Array  = ["Carried the match alone.", "Stepped up when it counted.", "Proved they don't need the team."]
+const SOLO_WIN_FLAVOR:   Array  = ["Carried the match alone.", "Stepped up when it counted.", "Proved the team was not needed."]
 const SOLO_LOSS_FLAVOR:  Array  = ["Couldn't handle it alone.", "The pressure was too much solo.", "Needed backup that wasn't there."]
 const ADVANCE_BTN_SOLO:  String = "⚡  Advance Week  — 👤 Solo"
 
@@ -138,14 +264,9 @@ const TOURNAMENT_WIN_CLOSE:   String = "Scraped through — but made it."
 const TOURNAMENT_LOSS_ROUND:  String = "Eliminated in Round %d."
 const TOURNAMENT_ROUNDS_WON:  String = "Won %d / %d rounds"
 
-
-# --- Micro reward templates (kept for future use) ---
-const REWARD_PREFIX: String = "📈 "
-
-
 # --- MVP badge ---
 const MVP_BADGE:   String = "⭐ MVP"
-const WORST_BADGE: String = "💔 Struggled"  # worst performer badge in results
+const WORST_BADGE: String = "💔 Struggled"
 
 # --- Pre-match risk warnings ---
 const WARN_TIRED_PLAYER: String = "⚠️ Tired players"
@@ -157,92 +278,141 @@ const ESTIMATE_FAVORED:  String = "🟢 You are favored"
 const ESTIMATE_EVEN:     String = "🟡 Even match"
 const ESTIMATE_UNDERDOG: String = "🔴 You are the underdog"
 
-# --- Morale delta display (shown in conditions line) ---
+# --- Matchup verdict labels (shown pre-match) ---
+const MATCHUP_STRONG:  String = "✅ Good counter"
+const MATCHUP_NEUTRAL: String = "🟡 Even matchup"
+const MATCHUP_WEAK:    String = "⚠️ Bad matchup"
+
+static func matchup_verdict(modifier: float) -> String:
+	if modifier >= 8.0:
+		return MATCHUP_STRONG
+	elif modifier <= -8.0:
+		return MATCHUP_WEAK
+	else:
+		return MATCHUP_NEUTRAL
+
+# --- Morale delta display ---
 const MORALE_GAIN: String = "(+%d morale)"
-const MORALE_LOSS: String = "(%d morale)"  # value is negative, %d prints it with sign
-const ADVANCE_BTN_NORMAL:      String = "⚡  Advance Week"
-const ADVANCE_BTN_IMPORTANT:   String = "⚡  Advance Week  — ⭐ Important"
-const ADVANCE_BTN_TOURNAMENT:  String = "⚡  Advance Week  — 🏆 Tournament"
+const MORALE_LOSS: String = "(%d morale)"
+const ADVANCE_BTN_NORMAL:     String = "⚡  Advance Week"
+const ADVANCE_BTN_IMPORTANT:  String = "⚡  Advance Week  — ⭐ Important"
+const ADVANCE_BTN_TOURNAMENT: String = "⚡  Advance Week  — 🏆 Tournament"
 
 # --- XP & Level ---
-const XP_GAINED:    String = "+%d XP"
-const LEVEL_UP:     String = "⬆ Level %d!"
-const LEVEL_UP_STATS: String = "Skill +%d%s"  # %s = "  Focus +1" or ""
-const LEVEL_BADGE:  String = "Lv.%d"
+const XP_GAINED:      String = "+%d XP"
+const LEVEL_UP:       String = "⬆ Level %d!"
+const LEVEL_UP_STATS: String = "Skill +%d%s"
+const LEVEL_BADGE:    String = "Lv.%d"
 
 
 # --- Flavor text pools ---
-# Each entry is an Array so you can add more lines freely.
-# The generator picks based on trait + situation.
-
 const FLAVOR: Dictionary = {
 
 	"clutch": {
-		"important_high":      ["Delivered under pressure.", "Rose to the occasion."],
+		"important_high":        ["Delivered under pressure.", "Rose to the occasion."],
 		"important_high_streak": ["Delivered under pressure — again.", "Does it every time."],
-		"important_low":       ["Couldn't step up when it mattered.", "Disappeared when the stakes were highest."],
-		"important_low_streak":  ["Froze up when it mattered most.", "The pressure is getting to them."],
-		"high":                ["Carried key moments.", "Stepped up big today."],
-		"low":                 ["Off day — not like them.", "Unusually quiet performance."],
-		"mid":                 ["Kept things steady.", "Did the job."],
+		"important_low":         ["Couldn't step up when it mattered.", "Disappeared when the stakes were highest."],
+		"important_low_streak":  ["Froze up when it mattered most.", "The pressure is getting to this one."],
+		"high":                  ["Carried key moments.", "Stepped up big today."],
+		"low":                   ["Off day — unusual for a player like this.", "Unusually quiet performance."],
+		"mid":                   ["Kept things steady.", "Did the job."],
 	},
 
 	"choker": {
-		"important_low":       ["Collapsed under pressure.", "Fell apart at the worst time."],
-		"important_low_streak":  ["Collapsed again under pressure.", "Can't handle the big moments."],
-		"important_high":      ["Held it together — surprising everyone.", "Managed to push through."],
-		"normal_high":         ["Looked more comfortable than usual.", "Thriving without the pressure."],
-		"low":                 ["Struggled to keep up.", "Not their best showing."],
-		"mid":                 ["Contributed quietly.", "Stayed out of trouble."],
+		"important_low":         ["Collapsed under pressure.", "Fell apart at the worst time."],
+		"important_low_streak":  ["Collapsed again under pressure.", "Cannot handle the big moments."],
+		"important_high":        ["Held it together — surprising everyone.", "Managed to push through."],
+		"normal_high":           ["Looked more comfortable than usual.", "Thriving without the pressure."],
+		"low":                   ["Struggled to keep up.", "Not a great showing."],
+		"mid":                   ["Contributed quietly.", "Stayed out of trouble."],
 	},
 
 	"grinder": {
-		"high":                ["Hard work paid off.", "All those hours in the lab showing."],
-		"high_streak":         ["All those hours paid off.", "Grinding is paying dividends."],
-		"mid":                 ["Reliable as always.", "Consistent output — no surprises."],
-		"low":                 ["Even grinding couldn't save today.", "Bad day at the office."],
+		"high":        ["Hard work paid off.", "All those hours in the lab showing."],
+		"high_streak": ["All those hours paid off.", "Grinding is paying dividends."],
+		"mid":         ["Reliable as always.", "Consistent output — no surprises."],
+		"low":         ["Even grinding couldn't save today.", "Bad day at the office."],
 	},
 
 	"lazy": {
-		"low":                 ["Looked unprepared.", "Half-hearted effort today."],
-		"low_streak":          ["Looked unprepared — as usual.", "The laziness is catching up."],
-		"high":                ["Seemed refreshed — and it showed.", "When they try, they deliver."],
-		"mid":                 ["Did just enough.", "Got away with it today."],
+		"low":         ["Looked disinterested from the start.", "Coasting — needs a spark."],
+		"high":        ["Turned it on when it counted.", "Explosive when motivated."],
+		"mid":         ["Managed their energy carefully.", "Didn't overextend."],
 	},
 
 	"consistent": {
-		"high":                ["Flawless — exactly what you'd expect.", "Textbook performance."],
-		"low":                 ["Even the reliable ones have bad days.", "Unusually off today."],
-		"mid":                 ["Steady and dependable as expected.", "Exactly what was needed."],
+		"high":        ["Delivered exactly what was asked.", "No drama — just results."],
+		"mid":         ["Steady as always.", "Reliable in every phase."],
+		"low":         ["Off their usual standard.", "Uncharacteristically sloppy."],
 	},
 
 	"volatile": {
-		"high":                ["Chaos theory in their favour today.", "Completely unhinged — in a good way."],
-		"low":                 ["Completely off the rails.", "High risk, high reward — today was the risk."],
-		"mid":                 ["You never quite know with them.", "Unpredictable performance today."],
+		"high":        ["Unplayable today.", "On one of those peaks — unstoppable."],
+		"high_streak": ["Back-to-back peaks — rare for this player.", "Running hot."],
+		"low":         ["One of those invisible days.", "Completely off — nothing working."],
+		"low_streak":  ["Cold streak continuing.", "Can't find the form."],
+		"mid":         ["Somewhere in between today.", "Not their best, not their worst."],
 	},
 
 	"none": {
-		"high":                ["Had a great match.", "Strong showing today."],
-		"low":                 ["Had a rough match.", "Struggled today."],
-		"mid":                 ["Played a steady game.", "Decent enough."],
+		"high":  ["Strong outing.", "Came through when needed."],
+		"mid":   ["Solid contribution.", "Did their part."],
+		"low":   ["Quiet match.", "Couldn't make an impact."],
 	},
 }
 
 
-# Helper: pick a random string from an array.
-static func pick(arr: Array) -> String:
-	if arr.is_empty(): return ""
-	return arr[randi() % arr.size()]
-
-
-# Helper: get flavor lines for a given trait + situation key.
-static func flavor(trait_key: String, situation: String) -> String:
-	var trait_data: Dictionary = FLAVOR.get(trait_key, FLAVOR["none"])
-	var lines: Array = trait_data.get(situation, [])
-	
+# ---------------------------------------------------------------------------
+# FLAVOR — picks a random line from the FLAVOR pool for a trait+key combo.
+# Falls back gracefully if the key or trait is missing.
+# ---------------------------------------------------------------------------
+static func flavor(trait_key: String, situation_key: String) -> String:
+	if not FLAVOR.has(trait_key):
+		trait_key = "none"
+	var pool: Dictionary = FLAVOR[trait_key]
+	# Try exact key, then fall back to base key (strip _streak suffix)
+	var base_key: String = situation_key.replace("_streak", "")
+	var lines: Array
+	if pool.has(situation_key):
+		lines = pool[situation_key]
+	elif pool.has(base_key):
+		lines = pool[base_key]
+	elif pool.has("mid"):
+		lines = pool["mid"]
+	else:
+		return ""
 	if lines.is_empty():
-		# Fallback to mid
-		lines = trait_data.get("mid", ["Played a steady game."])
-		
-	return pick(lines)
+		return ""
+	return lines[randi() % lines.size()]
+
+
+# ---------------------------------------------------------------------------
+# PLAYER VOICE — one-line coaching sentence shown on hub cards.
+# ---------------------------------------------------------------------------
+static func player_voice(player: Player, stamina_key: String, morale_key: String, match_type: String) -> String:
+	var notes: Array = []
+
+	match stamina_key:
+		"exhausted": notes.append("Running on fumes")
+		"tired":     notes.append("Showing fatigue")
+
+	match morale_key:
+		"confident": notes.append("in great spirits")
+		"shaky":     notes.append("confidence is low")
+
+	if player.burnout >= 3:
+		notes.append("burnout warning")
+
+	if player.form_label == "🔥 In Form":
+		notes.append("in form")
+	elif player.form_label == "📉 Struggling":
+		notes.append("on a rough run")
+
+	if player.primary_trait == "clutch" and match_type in ["important", "tournament"]:
+		notes.append("this is their moment")
+	elif player.primary_trait == "choker" and match_type in ["important", "tournament"]:
+		notes.append("watch the nerves")
+
+	if notes.is_empty():
+		return ""
+	return notes[0].capitalize() + (". " + notes[1].capitalize() if notes.size() > 1 else ".")

@@ -28,6 +28,7 @@ extends RefCounted
 #
 # is_important: true for important matches, tournaments, and solos.
 #   This flag amplifies clutch/choker trait effects.
+# modifiers: optional dict of { score_bonus, morale_gain, morale_loss } from incidents.
 # ---------------------------------------------------------------------------
 static func simulate_player(player: Player, is_important: bool) -> Dictionary:
 	var breakdown: Array = []
@@ -111,6 +112,7 @@ static func simulate_player(player: Player, is_important: bool) -> Dictionary:
 # players: the roster (Array[Player])
 # is_important: passed to each simulate_player call
 # opponent_score: the target to beat
+# modifiers: dict keyed by player_name from IncidentEngine decisions
 # ---------------------------------------------------------------------------
 static func simulate_team(players: Array[Player], is_important: bool, opponent_score: int) -> Dictionary:
 	var player_results: Array = []

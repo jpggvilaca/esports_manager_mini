@@ -1,97 +1,136 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://bnox6mw16lgka"]
 
-[ext_resource type="Script" path="res://scenes/GameWorld.gd" id="1_gw"]
-[ext_resource type="Texture2D" path="res://assets/room/player1.png" id="2_p1"]
-[ext_resource type="Texture2D" path="res://assets/room/player2.png" id="3_p2"]
-[ext_resource type="Texture2D" path="res://assets/room/player3.png" id="4_p3"]
+[ext_resource type="Script" uid="uid://do8xjpqmn2qfs" path="res://scenes/GameWorld.gd" id="1_gw"]
+[ext_resource type="Theme" uid="uid://dqky3vxkyky18" path="res://ui/theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" uid="uid://n577xan6xon0" path="res://assets/room/background.webp" id="3_bg"]
 
-[node name="GameWorld" type="Node2D"]
+[node name="GameWorld" type="Node2D" unique_id=1485165983]
 script = ExtResource("1_gw")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=1663132303]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.10, 0.11, 0.14, 1.0)
+color = Color(0.08, 0.09, 0.12, 1)
 
-[node name="Players" type="Node2D" parent="."]
-
-[node name="Player1" type="Sprite2D" parent="Players"]
-position = Vector2(560, 540)
-texture = ExtResource("2_p1")
-
-[node name="Player2" type="Sprite2D" parent="Players"]
-position = Vector2(960, 540)
-texture = ExtResource("3_p2")
-
-[node name="Player3" type="Sprite2D" parent="Players"]
-position = Vector2(1360, 540)
-texture = ExtResource("4_p3")
-
-[node name="UI" type="CanvasLayer" parent="."]
-layer = 1
-
-[node name="HeaderPanel" type="PanelContainer" parent="UI"]
-anchors_preset = 1
-anchor_left = 1.0
+[node name="BgImage" type="TextureRect" parent="." unique_id=786907174]
+modulate = Color(1, 1, 1, 0.18)
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = -240.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = 116.0
+anchor_bottom = 1.0
+mouse_filter = 2
+texture = ExtResource("3_bg")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="HeaderMargin" type="MarginContainer" parent="UI/HeaderPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_bottom = 6
+[node name="UI" type="CanvasLayer" parent="." unique_id=1870306047]
 
-[node name="HeaderVBox" type="VBoxContainer" parent="UI/HeaderPanel/HeaderMargin"]
-layout_mode = 2
-theme_override_constants/separation = 2
+[node name="Root" type="Control" parent="UI" unique_id=682136905]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
 
-[node name="WeekLabel" type="Label" parent="UI/HeaderPanel/HeaderMargin/HeaderVBox"]
+[node name="Margin" type="MarginContainer" parent="UI/Root" unique_id=1182614204]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="UI/Root/Margin" unique_id=1833885146]
 layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Header" type="VBoxContainer" parent="UI/Root/Margin/VBox" unique_id=1758822199]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WeekLabel" type="Label" parent="UI/Root/Margin/VBox/Header" unique_id=960845136]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.95, 1)
+theme_override_font_sizes/font_size = 22
+text = "Season 1  ·  Week 1"
+
+[node name="EventLabel" type="Label" parent="UI/Root/Margin/VBox/Header" unique_id=2114870579]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.7, 0.25, 1)
+theme_override_font_sizes/font_size = 14
+text = "Regular Match"
+
+[node name="GoalLabel" type="Label" parent="UI/Root/Margin/VBox/Header" unique_id=471816439]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="MatchInfo" type="HBoxContainer" parent="UI/Root/Margin/VBox" unique_id=640359576]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="OpponentLabel" type="Label" parent="UI/Root/Margin/VBox/MatchInfo" unique_id=2093076863]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
+theme_override_font_sizes/font_size = 14
+text = "Opponent  ·  Average"
+
+[node name="EstimateLabel" type="Label" parent="UI/Root/Margin/VBox/MatchInfo" unique_id=1983214397]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+
+[node name="IntelBox" type="VBoxContainer" parent="UI/Root/Margin/VBox" unique_id=918730972]
+layout_mode = 2
+
+[node name="SquadHeader" type="Label" parent="UI/Root/Margin/VBox" unique_id=245499006]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "ACTIVE SQUAD"
+
+[node name="SquadRow" type="HBoxContainer" parent="UI/Root/Margin/VBox" unique_id=944397306]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BenchHeader" type="Label" parent="UI/Root/Margin/VBox" unique_id=1412933810]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 0.45, 0.52, 1)
+theme_override_font_sizes/font_size = 12
+text = "BENCH"
+
+[node name="BenchRow" type="HBoxContainer" parent="UI/Root/Margin/VBox" unique_id=1429920613]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ButtonRow" type="HBoxContainer" parent="UI/Root/Margin/VBox" unique_id=1243943862]
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_constants/separation = 16
+
+[node name="RosterBtn" type="Button" parent="UI/Root/Margin/VBox/ButtonRow" unique_id=1296648291]
+custom_minimum_size = Vector2(180, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 15
-theme_override_colors/font_color = Color(0.85, 0.90, 1.0, 1.0)
-horizontal_alignment = 2
-text = "Season 1 · Week 1"
+text = "📋  Roster & Squad"
 
-[node name="NextEventLabel" type="Label" parent="UI/HeaderPanel/HeaderMargin/HeaderVBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(1.0, 0.70, 0.20, 1.0)
-horizontal_alignment = 2
-text = ""
-
-[node name="SeasonGoalLabel" type="Label" parent="UI/HeaderPanel/HeaderMargin/HeaderVBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(0.65, 0.90, 0.65, 1.0)
-horizontal_alignment = 2
-text = ""
-
-[node name="ManageBtn" type="Button" parent="UI"]
-anchors_preset = 4
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -130.0
-offset_top = 860.0
-offset_right = 130.0
-offset_bottom = 906.0
-text = "📋  Open Management"
-theme_override_font_sizes/font_size = 17
-
-[node name="MarketBtn" type="Button" parent="UI"]
-anchors_preset = 4
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -130.0
-offset_top = 916.0
-offset_right = 130.0
-offset_bottom = 958.0
-theme_override_font_sizes/font_size = 15
-theme_override_colors/font_color = Color(0.65, 0.90, 0.65, 1.0)
-text = "📊  Player Market"
+[node name="MarketBtn" type="Button" parent="UI/Root/Margin/VBox/ButtonRow" unique_id=576990225]
 visible = false
+custom_minimum_size = Vector2(160, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 15
+text = "📊  Market"
+
+[node name="EndWeekBtn" type="Button" parent="UI/Root/Margin/VBox/ButtonRow" unique_id=1262927396]
+custom_minimum_size = Vector2(200, 52)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 19
+text = "⚡  Next Week"
