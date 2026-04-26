@@ -1,12 +1,14 @@
 # scenes/GameWorld.gd
-# Hub screen — week context, squad cards, Next Week button.
-# Shows pre-match intel: opponent name, traits (with icons), situations, matchup verdict.
+# Hub screen. Two-panel top layout:
+#   LEFT  — match intel (next match opponent, situations, prognosis, estimate)
+#   RIGHT — season/quarter goals + week/event
 extends Node2D
 
 const TraitMatchup := preload("res://scripts/systems/TraitMatchup.gd")
 
 const ROSTER_SCENE     := preload("res://scenes/RosterScreen.tscn")
 const RESOLUTION_SCENE := preload("res://scenes/ResolutionScreen.tscn")
+const MARKET_SCENE     := preload("res://ui/components/MarketOverlay.tscn")
 
 const PORTRAIT_PATHS: Array[String] = [
 	"res://assets/portraits/portrait1.png",
@@ -16,14 +18,22 @@ const PORTRAIT_PATHS: Array[String] = [
 	"res://assets/portraits/portrait5.png",
 ]
 
-@onready var _week_label:    Label         = $UI/Root/Margin/VBox/Header/WeekLabel
-@onready var _event_lbl:     Label         = $UI/Root/Margin/VBox/Header/EventLabel
-@onready var _goal_lbl:      Label         = $UI/Root/Margin/VBox/Header/GoalLabel
-@onready var _opponent_lbl:  Label         = $UI/Root/Margin/VBox/MatchInfo/OpponentLabel
-@onready var _estimate_lbl:  Label         = $UI/Root/Margin/VBox/MatchInfo/EstimateLabel
-@onready var _intel_box:     VBoxContainer = $UI/Root/Margin/VBox/IntelBox
+# Left panel nodes
+@onready var _week_label:    Label         = $UI/Root/Margin/VBox/TopRow/LeftPanel/WeekLabel
+@onready var _opponent_lbl:  Label         = $UI/Root/Margin/VBox/TopRow/LeftPanel/OpponentLabel
+@onready var _intel_box:     VBoxContainer = $UI/Root/Margin/VBox/TopRow/LeftPanel/IntelBox
+@onready var _estimate_lbl:  Label         = $UI/Root/Margin/VBox/TopRow/LeftPanel/EstimateLabel
+
+# Right panel nodes
+@onready var _week_mini_lbl: Label         = $UI/Root/Margin/VBox/TopRow/RightPanel/WeekMiniLabel
+@onready var _event_lbl:     Label         = $UI/Root/Margin/VBox/TopRow/RightPanel/EventLabel
+@onready var _goal_lbl:      Label         = $UI/Root/Margin/VBox/TopRow/RightPanel/GoalLabel
+
+# Squad rows
 @onready var _squad_row:     HBoxContainer = $UI/Root/Margin/VBox/SquadRow
 @onready var _bench_row:     HBoxContainer = $UI/Root/Margin/VBox/BenchRow
+
+# Buttons
 @onready var _end_week_btn:  Button        = $UI/Root/Margin/VBox/ButtonRow/EndWeekBtn
 @onready var _market_btn:    Button        = $UI/Root/Margin/VBox/ButtonRow/MarketBtn
 @onready var _roster_btn:    Button        = $UI/Root/Margin/VBox/ButtonRow/RosterBtn
@@ -46,16 +56,16 @@ func _ready() -> void:
 func _refresh_ui() -> void:
 	var ctx: Dictionary = _game.get_week_context()
 
-	_week_label.text  = "Season %d  ·  Week %d" % [ctx["season"], ctx["week"]]
-	_event_lbl.text   = _build_event_label(ctx)
-	_goal_lbl.text    = _build_goal_label()
-
-	# Opponent header — name + difficulty
+	# Left panel — match intel
+	_week_label.text   = "Season %d  ·  Week %d" % [ctx["season"], ctx["week"]]
 	_opponent_lbl.text = "%s  ·  %s" % [ctx["opponent_name"], ctx["difficulty"]]
 	_estimate_lbl.text = ctx["win_estimate"]
-
-	# Pre-match intel block
 	_build_match_intel(ctx)
+
+	# Right panel — goals
+	_week_mini_lbl.text = "Season %d  ·  Week %d" % [ctx["season"], ctx["week"]]
+	_event_lbl.text     = _build_event_label(ctx)
+	_goal_lbl.text      = _build_goal_label()
 
 	_refresh_squad_display(ctx["match_type"])
 
@@ -64,96 +74,79 @@ func _refresh_ui() -> void:
 		else "Pick %d players first" % GameManager.SQUAD_SIZE
 
 	_market_btn.visible = _game.market != null and _game.market.is_available(ctx["week"], ctx.get("next_event", {}))
+	# Show text so coach knows market is live this week
+	_market_btn.text = "📊  Market"
 
 
 # ---------------------------------------------------------------------------
-# MATCH INTEL — pre-match panel: opponent traits + situations + verdict
-# Builds into _intel_box (VBoxContainer in the scene).
-# Falls back gracefully if _intel_box is null (scene not updated yet).
+# MATCH INTEL — left panel: situations + prognosis (Early/Mid/Late per trait)
 # ---------------------------------------------------------------------------
 
 func _build_match_intel(ctx: Dictionary) -> void:
-	if _intel_box == null:
-		return
 	for child in _intel_box.get_children():
 		child.queue_free()
 
-	var opponent_traits:  Array = ctx.get("opponent_traits", [])
-	var situations:       Array = ctx.get("situations", [])
-	var modifier:         float = ctx.get("matchup_modifier", 0.0)
+	var opponent_traits: Array = ctx.get("opponent_traits", [])
+	var situations:      Array = ctx.get("situations", [])
+	var modifier:        float = ctx.get("matchup_modifier", 0.0)
 
-	# --- Section: Opponent traits ---
-	_add_intel_section_header(_intel_box, "Opponent style")
-	var traits_row := HBoxContainer.new()
-	traits_row.add_theme_constant_override("separation", 8)
-	for t in opponent_traits:
-		var badge := _make_trait_badge(t, false)
-		traits_row.add_child(badge)
-	_intel_box.add_child(traits_row)
+	# Opponent traits row
+	if opponent_traits.size() > 0:
+		var opp_row := HBoxContainer.new()
+		opp_row.add_theme_constant_override("separation", 10)
+		for t in opponent_traits:
+			var lbl := Label.new()
+			lbl.text = GameText.trait_label(t)
+			lbl.add_theme_font_size_override("font_size", 12)
+			lbl.add_theme_color_override("font_color", Color(0.95, 0.72, 0.35))
+			opp_row.add_child(lbl)
+		_intel_box.add_child(opp_row)
 
-	# --- Section: Match situations ---
-	_add_intel_section_header(_intel_box, "Today's match")
-	for sit in situations:
-		var sit_lbl := Label.new()
-		var favored_trait: String = GameText.SITUATION_FAVORS.get(sit, "")
-		var favored_label: String = GameText.trait_label(favored_trait)
-		sit_lbl.text = GameText.situation_label(sit) + "  →  " + favored_label
-		sit_lbl.add_theme_font_size_override("font_size", 11)
-		sit_lbl.add_theme_color_override("font_color", Color(0.68, 0.72, 0.85))
-		_intel_box.add_child(sit_lbl)
+	# Match prognosis — always show Early / Mid / Late (pad if only 2 situations)
+	if situations.size() > 0:
+		var prog_lbl := Label.new()
+		prog_lbl.text = "PROGNOSIS"
+		prog_lbl.add_theme_font_size_override("font_size", 9)
+		prog_lbl.add_theme_color_override("font_color", Color(0.40, 0.40, 0.50))
+		_intel_box.add_child(prog_lbl)
 
-	# --- Section: Matchup verdict ---
+		var phase_names: Array[String] = ["Early", "Mid", "Late"]
+		var player_traits: Array[String] = ctx.get("player_match_traits", [])
+		for i in 3:
+			var phase: String = phase_names[i]
+			var sit_lbl := Label.new()
+			if i < situations.size():
+				var sit: String = situations[i]
+				var favored: String = GameText.SITUATION_FAVORS.get(sit, "")
+				var covered: bool = favored != "" and favored in player_traits
+				# Phase label neutral, situation text colored by coverage
+				sit_lbl.text = "%s — %s  →  %s" % [
+					phase,
+					GameText.SITUATION_NAMES.get(sit, sit),
+					GameText.trait_label(favored)
+				]
+				var sit_color: Color = Color(0.30, 0.85, 0.45) if covered else Color(0.85, 0.40, 0.40)
+				sit_lbl.add_theme_color_override("font_color", sit_color)
+			else:
+				sit_lbl.text = "%s — No event" % phase
+				sit_lbl.add_theme_color_override("font_color", Color(0.40, 0.40, 0.50))
+			sit_lbl.add_theme_font_size_override("font_size", 11)
+			sit_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+			_intel_box.add_child(sit_lbl)
+
+	# Matchup verdict
 	var verdict_lbl := Label.new()
 	verdict_lbl.text = GameText.matchup_verdict(modifier)
 	var verdict_color: Color
 	if modifier >= 8.0:
-		verdict_color = Color(0.30, 0.85, 0.45)
+		verdict_color = Color(0.28, 0.85, 0.45)
 	elif modifier <= -8.0:
-		verdict_color = Color(0.90, 0.35, 0.35)
+		verdict_color = Color(0.90, 0.32, 0.32)
 	else:
-		verdict_color = Color(0.90, 0.80, 0.30)
+		verdict_color = Color(0.90, 0.78, 0.28)
 	verdict_lbl.add_theme_font_size_override("font_size", 11)
 	verdict_lbl.add_theme_color_override("font_color", verdict_color)
 	_intel_box.add_child(verdict_lbl)
-
-	# --- Balance Fix 3: Your squad's counter hint ---
-	# Show what each active player's match trait beats and loses to,
-	# right on the pre-match panel so the player learns the matrix.
-	var active: Array[Player] = _game.active_players()
-	if active.size() > 0:
-		_add_intel_section_header(_intel_box, "Your squad counters")
-		for p in active:
-			var mt: String = TraitMatchup.TRAIT_TO_MATCH.get(p.primary_trait, "tactical")
-			var beats_arr: Array = TraitMatchup.WINS_AGAINST.get(mt, [])
-			var weak_arr:  Array = TraitMatchup.LOSES_AGAINST.get(mt, [])
-			var beats_labels: Array = beats_arr.map(func(t): return GameText.TRAIT_NAMES.get(t, t))
-			var weak_labels:  Array = weak_arr.map(func(t):  return GameText.TRAIT_NAMES.get(t, t))
-			var hint_lbl := Label.new()
-			var b_str: String = " ↑ " + ", ".join(beats_labels) if beats_labels.size() > 0 else ""
-			var w_str: String = " ↓ " + ", ".join(weak_labels)  if weak_labels.size()  > 0 else ""
-			hint_lbl.text = GameText.trait_label(p.primary_trait) + b_str + w_str
-			hint_lbl.add_theme_font_size_override("font_size", 10)
-			hint_lbl.add_theme_color_override("font_color", Color(0.55, 0.78, 1.0))
-			_intel_box.add_child(hint_lbl)
-
-
-func _add_intel_section_header(parent: VBoxContainer, text: String) -> void:
-	var lbl := Label.new()
-	lbl.text = text.to_upper()
-	lbl.add_theme_font_size_override("font_size", 9)
-	lbl.add_theme_color_override("font_color", Color(0.40, 0.40, 0.48))
-	parent.add_child(lbl)
-
-
-# Makes a compact trait badge label for the intel panel.
-# is_player = true → blue tint (your trait); false → amber tint (opponent trait).
-func _make_trait_badge(trait_key: String, is_player: bool) -> Label:
-	var lbl := Label.new()
-	lbl.text = GameText.trait_label(trait_key)
-	lbl.add_theme_font_size_override("font_size", 11)
-	var col: Color = Color(0.50, 0.75, 1.0) if is_player else Color(0.95, 0.72, 0.35)
-	lbl.add_theme_color_override("font_color", col)
-	return lbl
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +203,7 @@ func _make_player_card(player: Player, is_active: bool, match_type: String, port
 		Color(1.0, 1.0, 1.0) if is_active else Color(0.60, 0.60, 0.65))
 	vbox.add_child(name_lbl)
 
-	# Trait — icon + name (performance trait) + match trait hint
+	# Trait — performance icon+name · match trait icon+name
 	var trait_lbl := Label.new()
 	var perf_label: String = GameText.trait_label(player.primary_trait)
 	var mt: String = TraitMatchup.TRAIT_TO_MATCH.get(player.primary_trait, "tactical")
@@ -231,7 +224,7 @@ func _make_player_card(player: Player, is_active: bool, match_type: String, port
 	_add_stat_bar(vbox, "Lv.%d  %s" % [player.level, xp_suffix],
 		int(xp_progress * 100), Color(0.40, 0.70, 1.0))
 
-	# Coaching voice for active players
+	# Coaching voice
 	if is_active:
 		var voice_text: String = player.voice(match_type)
 		if voice_text != "":
@@ -257,13 +250,25 @@ func _make_player_card(player: Player, is_active: bool, match_type: String, port
 		warn_lbl.add_theme_color_override("font_color", Color(1.0, 0.4, 0.2))
 		vbox.add_child(warn_lbl)
 
-	# Bench status label
+	# Bench status + toggle button
 	if not is_active:
+		var bench_action_lbl: String = "📚 Training" if player.bench_action == "train" else "💤 Resting"
 		var bench_lbl := Label.new()
-		bench_lbl.text = "📚 Training" if player.primary_trait == "grinder" else "💤 Resting"
+		bench_lbl.text = bench_action_lbl
 		bench_lbl.add_theme_font_size_override("font_size", 10)
 		bench_lbl.add_theme_color_override("font_color", Color(0.45, 0.45, 0.52))
 		vbox.add_child(bench_lbl)
+
+		# Toggle button — switches between train and rest
+		var toggle_btn := Button.new()
+		var other_action: String = "rest" if player.bench_action == "train" else "train"
+		var other_label: String  = "Switch to 💤 Rest" if other_action == "rest" else "Switch to 📚 Train"
+		toggle_btn.text = other_label
+		toggle_btn.add_theme_font_size_override("font_size", 10)
+		toggle_btn.custom_minimum_size = Vector2(0, 26)
+		var captured_name: String = player.player_name
+		toggle_btn.pressed.connect(func(): _on_bench_toggle(captured_name))
+		vbox.add_child(toggle_btn)
 
 	outer_row.add_child(vbox)
 	margin.add_child(outer_row)
@@ -331,7 +336,19 @@ func _on_resolution_finished() -> void:
 
 
 func _on_market_btn_pressed() -> void:
-	pass  # Market overlay — wired in a future pass
+	var overlay: MarketOverlay = MARKET_SCENE.instantiate()
+	overlay.market_closed.connect(_on_market_closed)
+	$UI.add_child(overlay)
+	overlay.open(_game)
+
+
+func _on_market_closed() -> void:
+	_refresh_ui()
+
+
+func _on_bench_toggle(player_name: String) -> void:
+	_game.toggle_bench_action(player_name)
+	_refresh_ui()
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,5 @@
 # scenes/ResolutionScreen.gd
-# Sequenced resolution. Bench outcomes → three match acts (all players each act) → result.
-# Also shows matchup debrief: what the trait counters and situations contributed.
+# Sequenced resolution with colored act headers and counter results.
 class_name ResolutionScreen
 extends Control
 
@@ -8,8 +7,8 @@ const TraitMatchup := preload("res://scripts/systems/TraitMatchup.gd")
 
 signal finished
 
-const REVEAL_DELAY: float = 0.9   # between lines within an act
-const ACT_PAUSE:    float = 2.0   # pause between acts
+const REVEAL_DELAY: float = 0.9
+const ACT_PAUSE:    float = 2.0
 
 var _game:    GameManager = null
 var _result:  WeekResult  = null
@@ -44,13 +43,12 @@ func setup(result: WeekResult, game: GameManager) -> void:
 func _build_event_queue() -> void:
 	_events = []
 
-	# Header
 	var mtype_label: String = GameText.MATCH_TYPE.get(_result.match_type, "Match")
 	_events.append({ "type": "header",
 		"text": "Season %d  ·  Week %d  ·  %s" % [_result.season, _result.week, mtype_label]
 	})
 
-	# Bench outcomes — quiet before the drama
+	# Bench
 	for bench_data in _result.bench_results:
 		var line: String = bench_data["narrative"]
 		if bench_data["xp_gained"] > 0:
@@ -59,25 +57,61 @@ func _build_event_queue() -> void:
 			line += "  (+%d stamina)" % bench_data["stamina_gain"]
 		_events.append({ "type": "bench", "text": line })
 
-	# Three match acts — ALL players appear in every act.
+	# Three acts — act color driven by situation coverage per act
 	var pr: Array = _result.player_results
 	var act_situations: Array[String] = _get_act_situations(pr)
+	var situations: Array = _result.situations
 
-	var act_names: Array[String] = ["⚡ Early Game", "⚡ Mid Game", "⚡ Late Game"]
+	# Determine per-act situation hit (does any player cover this act's situation?)
+	var player_traits: Array = _result.player_match_traits
+	var act_names: Array[String] = ["⚡ Early", "⚡ Mid", "⚡ Late"]
+
 	for act_idx in 3:
+		# Check if this act's situation is covered by the squad
+		var sit_covered: bool = false
+		var sit_name_str: String = ""
+		var sit_trait_str: String = ""
+		if act_idx < situations.size():
+			var sit: String = situations[act_idx]
+			var favored: String = TraitMatchup.SITUATION_FAVORS.get(sit, "")
+			sit_covered = favored in player_traits
+			sit_name_str  = GameText.SITUATION_NAMES.get(sit, sit)
+			sit_trait_str = GameText.trait_label(favored)
+
+		# Act header — always neutral blue (phase label is never colored)
 		_events.append({ "type": "act_header", "text": act_names[act_idx] })
+
+		# Situation line — colored green if squad covers it, red if not
+		if sit_name_str != "":
+			_events.append({
+				"type":     "sit_line",
+				"text":     "%s  →  %s" % [sit_name_str, sit_trait_str],
+				"covered":  sit_covered,
+			})
+
 		_events.append({ "type": "situation", "text": act_situations[act_idx] })
 		for entry in pr:
-			_events.append(_player_act_event(entry, act_idx))
+			# Check if this player's match trait counters any opponent trait
+			var p: Player = entry["player"]
+			var p_mt: String = TraitMatchup.TRAIT_TO_MATCH.get(p.primary_trait, "tactical")
+			var opp_traits: Array = _result.opponent_traits
+			var player_counters: bool = false
+			var player_countered: bool = false
+			for ot in opp_traits:
+				if p_mt in TraitMatchup.WINS_AGAINST and ot in TraitMatchup.WINS_AGAINST[p_mt]:
+					player_counters = true
+				if p_mt in TraitMatchup.LOSES_AGAINST and ot in TraitMatchup.LOSES_AGAINST[p_mt]:
+					player_countered = true
+			_events.append(_player_act_event(entry, act_idx, player_counters, player_countered))
 
-	# Result beat
+	# Result
 	_events.append({ "type": "result",
 		"won":        _result.won,
 		"team_score": _result.team_score,
 		"opp_score":  _result.opponent_score
 	})
 
-	# Matchup debrief — explains what the trait counters contributed
+	# Matchup debrief with colored counter rows
 	_events.append_array(_build_matchup_debrief())
 
 	# Level-ups
@@ -89,78 +123,82 @@ func _build_event_queue() -> void:
 	if _result.quarter_bonus != "":
 		_events.append({ "type": "bonus", "text": "🌟 " + _result.quarter_bonus })
 
-	# Trait cheatsheet — always shown at the end so the player can study it
-	_events.append({ "type": "cheatsheet_header" })
-	for mt in TraitMatchup.MATCH_TRAITS:
-		var beats: Array = TraitMatchup.WINS_AGAINST.get(mt, [])
-		var weak:  Array = TraitMatchup.LOSES_AGAINST.get(mt, [])
-		_events.append({
-			"type":  "cheatsheet_row",
-			"trait": mt,
-			"beats": beats,
-			"weak":  weak,
-		})
-
 	_events.append({ "type": "done" })
 
 
 # ---------------------------------------------------------------------------
-# MATCHUP DEBRIEF — short readable summary of what the trait matchup contributed.
-# Appears after VICTORY/DEFEAT so the player understands the why.
+# MATCHUP DEBRIEF — per-opponent-slot colored green/red
 # ---------------------------------------------------------------------------
 
 func _build_matchup_debrief() -> Array:
 	var debrief: Array = []
-	var modifier: float = _result.matchup_modifier
-	var opp_traits: Array = _result.opponent_traits
-	var situations: Array = _result.situations
+	var opp_traits:    Array = _result.opponent_traits
+	var situations:    Array = _result.situations
 	var player_traits: Array = _result.player_match_traits
 
 	if opp_traits.is_empty() and situations.is_empty():
 		return debrief
 
-	debrief.append({ "type": "debrief_header", "text": "Match breakdown" })
+	debrief.append({ "type": "debrief_header", "text": "What countered what" })
 
-	# Opponent matchup line
-	var opp_hits: int = 0
-	var opp_misses: int = 0
-	for pt in player_traits:
-		for ot in opp_traits:
+	# Per opponent slot — show if any player trait beat it
+	for ot in opp_traits:
+		var hit: bool = false
+		var hit_by: String = ""
+		for pt in player_traits:
 			if pt in TraitMatchup.WINS_AGAINST and ot in TraitMatchup.WINS_AGAINST[pt]:
-				opp_hits += 1
-			elif pt in TraitMatchup.LOSES_AGAINST and ot in TraitMatchup.LOSES_AGAINST[pt]:
-				opp_misses += 1
+				hit = true
+				hit_by = GameText.trait_label(pt)
+				break
+		var opp_label: String = GameText.trait_label(ot)
+		if hit:
+			debrief.append({
+				"type":     "counter_row",
+				"text":     "✓  %s  ←  %s" % [opp_label, hit_by],
+				"positive": true,
+			})
+		else:
+			# Check if opponent punished us
+			var punished: bool = false
+			for pt in player_traits:
+				if pt in TraitMatchup.LOSES_AGAINST and ot in TraitMatchup.LOSES_AGAINST[pt]:
+					punished = true
+					break
+			var pfx: String = "✗" if punished else "—"
+			debrief.append({
+				"type":     "counter_row",
+				"text":     "%s  %s  (uncountered)" % [pfx, opp_label],
+				"positive": false,
+			})
 
-	var opp_line: String
-	if opp_hits > opp_misses:
-		opp_line = "Opponent  ·  Your comp countered their style"
-	elif opp_misses > opp_hits:
-		opp_line = "Opponent  ·  Their style punished your comp"
-	else:
-		opp_line = "Opponent  ·  Even matchup — no clear edge"
-	debrief.append({ "type": "debrief", "text": opp_line, "positive": opp_hits >= opp_misses })
-
-	# Situation coverage line
-	var sit_hits: int = 0
-	for sit in situations:
+	# Situation coverage per event
+	debrief.append({ "type": "debrief_subheader", "text": "Situations" })
+	var phase_names: Array[String] = ["Early", "Mid", "Late"]
+	for i in situations.size():
+		var sit: String = situations[i]
 		var favored: String = TraitMatchup.SITUATION_FAVORS.get(sit, "")
-		if favored in player_traits:
-			sit_hits += 1
-	var sit_label: String = GameText.situation_label(situations[0]) if situations.size() > 0 else ""
-	var sit_line: String
-	if sit_hits == situations.size():
-		sit_line = "Situations  ·  Full coverage — every event suited your team"
-	elif sit_hits > 0:
-		sit_line = "Situations  ·  Partial coverage — %d / %d events suited you" % [sit_hits, situations.size()]
-	else:
-		sit_line = "Situations  ·  No coverage — events didn't suit your comp"
-	debrief.append({ "type": "debrief", "text": sit_line, "positive": sit_hits > 0 })
+		var covered: bool = favored in player_traits
+		var phase: String = phase_names[i] if i < phase_names.size() else "Late"
+		var sit_name: String = GameText.SITUATION_NAMES.get(sit, sit)
+		var favor_lbl: String = GameText.trait_label(favored)
+		if covered:
+			debrief.append({
+				"type":     "counter_row",
+				"text":     "✓  %s — %s  →  covered" % [phase, sit_name],
+				"positive": true,
+			})
+		else:
+			debrief.append({
+				"type":     "counter_row",
+				"text":     "✗  %s — %s  (needs %s)" % [phase, sit_name, favor_lbl],
+				"positive": false,
+			})
 
 	return debrief
 
 
 # ---------------------------------------------------------------------------
-# ACT SITUATIONS — narrative for each act based on match state.
+# ACT SITUATIONS
 # ---------------------------------------------------------------------------
 
 func _get_act_situations(pr: Array) -> Array[String]:
@@ -176,8 +214,8 @@ func _get_act_situations(pr: Array) -> Array[String]:
 	else:
 		early = "Teams sizing each other up. Opening exchanges."
 
-	var mid: String
 	var diff: int = team_score - opp_score
+	var mid: String
 	if diff > 15:
 		mid = "Your team pulling ahead — momentum building."
 	elif diff < -15:
@@ -202,7 +240,7 @@ func _get_act_situations(pr: Array) -> Array[String]:
 # PER-PLAYER PER-ACT EVENT
 # ---------------------------------------------------------------------------
 
-func _player_act_event(entry: Dictionary, act_idx: int) -> Dictionary:
+func _player_act_event(entry: Dictionary, act_idx: int, player_counters: bool = false, player_countered: bool = false) -> Dictionary:
 	var player: Player  = entry["player"]
 	var label:  String  = entry.get("label", "")
 	var flavor: String  = entry.get("flavor", "")
@@ -214,8 +252,7 @@ func _player_act_event(entry: Dictionary, act_idx: int) -> Dictionary:
 	match act_idx:
 		0:
 			var notes: PackedStringArray = []
-			var sk: String = player.stamina_key()
-			match sk:
+			match player.stamina_key():
 				"exhausted": notes.append("running on empty")
 				"tired":     notes.append("showing fatigue")
 				"fresh":     notes.append("fully rested")
@@ -243,7 +280,8 @@ func _player_act_event(entry: Dictionary, act_idx: int) -> Dictionary:
 				line += "  (+%d XP)" % xp
 
 	return { "type": "player_act", "text": line, "act": act_idx,
-		"is_strong": score >= 75, "is_weak": score < 50 }
+		"is_strong": score >= 75, "is_weak": score < 50,
+		"player_counters": player_counters, "player_countered": player_countered }
 
 
 # ---------------------------------------------------------------------------
@@ -287,16 +325,33 @@ func _reveal_event(event: Dictionary) -> void:
 
 		"act_header":
 			_add_spacer()
+			# Act headers always stay neutral blue — never colored
 			_add_line(event["text"], Color(0.35, 0.75, 1.0, 1.0), 15)
 
+		"sit_line":
+			# Situation line — green if covered by squad, red if not
+			var sit_col: Color = Color(0.30, 0.88, 0.45, 1.0) if event.get("covered", false) \
+				else Color(0.88, 0.32, 0.32, 1.0)
+			_add_line("  " + event["text"], sit_col, 12)
+
 		"situation":
-			_add_line(event["text"], Color(0.60, 0.62, 0.72, 1.0), 13)
+			_add_line(event["text"], Color(0.58, 0.60, 0.70, 1.0), 12)
 
 		"player_act":
+			# Act 1 (mid): color by counter status — green if player counters opponent, red if countered
+			# Acts 0 and 2: color by performance (strong/weak)
 			var color: Color
-			if event["is_strong"]:   color = Color(0.95, 0.95, 0.70, 1.0)
-			elif event["is_weak"]:   color = Color(0.75, 0.55, 0.55, 1.0)
-			else:                    color = Color(0.85, 0.85, 0.90, 1.0)
+			if event["act"] == 1:
+				if event.get("player_counters", false):
+					color = Color(0.32, 0.90, 0.48, 1.0)  # green — we counter them
+				elif event.get("player_countered", false):
+					color = Color(0.90, 0.35, 0.35, 1.0)  # red — they counter us
+				else:
+					color = Color(0.85, 0.85, 0.90, 1.0)  # neutral
+			else:
+				if event["is_strong"]:   color = Color(0.95, 0.95, 0.70, 1.0)
+				elif event["is_weak"]:   color = Color(0.75, 0.55, 0.55, 1.0)
+				else:                    color = Color(0.85, 0.85, 0.90, 1.0)
 			_add_line("    " + event["text"], color, 13)
 
 		"result":
@@ -305,16 +360,20 @@ func _reveal_event(event: Dictionary) -> void:
 				_add_line("✅  VICTORY", Color(0.25, 0.90, 0.45, 1.0), 34)
 			else:
 				_add_line("❌  DEFEAT",  Color(0.90, 0.28, 0.28, 1.0), 34)
-			_add_line("Score  %d pts  vs  %d pts" % [event["team_score"], event["opp_score"]],
+			# Show effective scores — these are what the simulation actually compared
+			_add_line("Score  %d pts  vs  %d pts (effective threshold)" % [event["team_score"], event["opp_score"]],
 				Color(0.55, 0.58, 0.68, 1.0), 13)
 
 		"debrief_header":
 			_add_spacer()
-			_add_line(event["text"].to_upper(), Color(0.40, 0.42, 0.52, 1.0), 11)
+			_add_line(event["text"].to_upper(), Color(0.42, 0.44, 0.55, 1.0), 10)
 
-		"debrief":
-			var col: Color = Color(0.55, 0.85, 0.60, 1.0) if event.get("positive", true) \
-				else Color(0.85, 0.52, 0.45, 1.0)
+		"debrief_subheader":
+			_add_line(event["text"].to_upper(), Color(0.38, 0.40, 0.50, 1.0), 9)
+
+		"counter_row":
+			var col: Color = Color(0.35, 0.88, 0.48, 1.0) if event.get("positive", false) \
+				else Color(0.88, 0.38, 0.38, 1.0)
 			_add_line("    " + event["text"], col, 12)
 
 		"levelup":
@@ -330,11 +389,14 @@ func _reveal_event(event: Dictionary) -> void:
 		"cheatsheet_row":
 			var mt: String = event["trait"]
 			var beats_names: Array = event["beats"].map(func(t): return GameText.trait_label(t))
-			var weak_names:  Array = event["weak"].map(func(t): return GameText.trait_label(t))
+			var weak_names:  Array = event["weak"].map(func(t):  return GameText.trait_label(t))
 			var beats_str: String = "  ↑ " + ", ".join(beats_names) if beats_names.size() > 0 else ""
 			var weak_str:  String = "  ↓ " + ", ".join(weak_names)  if weak_names.size()  > 0 else ""
 			var row_text: String = GameText.trait_label(mt) + beats_str + weak_str
-			_add_line("    " + row_text, Color(0.55, 0.58, 0.70, 1.0), 11)
+			# Highlight in blue if this is one of the player's traits
+			var row_col: Color = Color(0.45, 0.75, 1.0, 1.0) if event.get("is_mine", false) \
+				else Color(0.48, 0.50, 0.62, 1.0)
+			_add_line("    " + row_text, row_col, 11)
 
 		"done":
 			_running = false

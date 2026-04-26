@@ -5,6 +5,8 @@
 class_name RosterScreen
 extends Control
 
+const TraitMatchup := preload("res://scripts/systems/TraitMatchup.gd")
+
 signal closed
 
 const PORTRAITS: Array[String] = [
@@ -137,7 +139,10 @@ func _make_card(player: Player, portrait_path: String, swap_target: Player) -> P
 
 	# Trait
 	var trait_lbl := Label.new()
-	trait_lbl.text = GameText.TRAIT_DESCRIPTIONS.get(player.primary_trait, player.primary_trait)
+	var perf_label: String = GameText.trait_label(player.primary_trait)
+	var mt: String = TraitMatchup.TRAIT_TO_MATCH.get(player.primary_trait, "tactical")
+	var mt_label: String = GameText.trait_label(mt)
+	trait_lbl.text = perf_label + "  ·  " + mt_label
 	trait_lbl.add_theme_font_size_override("font_size", 11)
 	trait_lbl.add_theme_color_override("font_color", Color(0.50, 0.75, 1.0, 1.0))
 	vbox.add_child(trait_lbl)
@@ -185,6 +190,27 @@ func _make_card(player: Player, portrait_path: String, swap_target: Player) -> P
 		hint_lbl.add_theme_color_override("font_color", Color(0.35, 0.85, 0.45, 1.0))
 	hint_lbl.add_theme_font_size_override("font_size", 10)
 	vbox.add_child(hint_lbl)
+
+	# Bench action toggle — shown only for benched players so they can switch train/rest
+	if not is_active:
+		var action_lbl := Label.new()
+		var action_icon: String = "📚 Training" if player.bench_action == "train" else "💤 Resting"
+		action_lbl.text = "Bench: %s" % action_icon
+		action_lbl.add_theme_font_size_override("font_size", 10)
+		action_lbl.add_theme_color_override("font_color", Color(0.55, 0.75, 0.55, 1.0))
+		vbox.add_child(action_lbl)
+
+		var toggle_btn := Button.new()
+		var other_label: String = "Switch to 💤 Rest" if player.bench_action == "train" else "Switch to 📚 Train"
+		toggle_btn.text = other_label
+		toggle_btn.add_theme_font_size_override("font_size", 10)
+		toggle_btn.custom_minimum_size = Vector2(0, 26)
+		var captured_toggle_name: String = player.player_name
+		toggle_btn.pressed.connect(func():
+			_game.toggle_bench_action(captured_toggle_name)
+			_build()
+		)
+		vbox.add_child(toggle_btn)
 
 	row.add_child(vbox)
 	margin.add_child(row)

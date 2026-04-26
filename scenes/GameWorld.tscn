@@ -48,50 +48,76 @@ theme_override_constants/margin_bottom = 24
 
 [node name="VBox" type="VBoxContainer" parent="UI/Root/Margin" unique_id=1833885146]
 layout_mode = 2
-theme_override_constants/separation = 18
+theme_override_constants/separation = 14
 
-[node name="Header" type="VBoxContainer" parent="UI/Root/Margin/VBox" unique_id=1758822199]
+[node name="TopRow" type="HBoxContainer" parent="UI/Root/Margin/VBox" unique_id=1111000001]
 layout_mode = 2
-theme_override_constants/separation = 4
+size_flags_vertical = 0
+theme_override_constants/separation = 32
 
-[node name="WeekLabel" type="Label" parent="UI/Root/Margin/VBox/Header" unique_id=960845136]
+[node name="LeftPanel" type="VBoxContainer" parent="UI/Root/Margin/VBox/TopRow" unique_id=1111000002]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_constants/separation = 5
+
+[node name="WeekLabel" type="Label" parent="UI/Root/Margin/VBox/TopRow/LeftPanel" unique_id=960845136]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.9, 0.95, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 18
 text = "Season 1  ·  Week 1"
 
-[node name="EventLabel" type="Label" parent="UI/Root/Margin/VBox/Header" unique_id=2114870579]
+[node name="MatchHeader" type="Label" parent="UI/Root/Margin/VBox/TopRow/LeftPanel" unique_id=1111000003]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.7, 0.25, 1)
-theme_override_font_sizes/font_size = 14
-text = "Regular Match"
+theme_override_colors/font_color = Color(0.5, 0.52, 0.62, 1)
+theme_override_font_sizes/font_size = 10
+text = "NEXT MATCH"
 
-[node name="GoalLabel" type="Label" parent="UI/Root/Margin/VBox/Header" unique_id=471816439]
+[node name="OpponentLabel" type="Label" parent="UI/Root/Margin/VBox/TopRow/LeftPanel" unique_id=2093076863]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.85, 0.55, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="MatchInfo" type="HBoxContainer" parent="UI/Root/Margin/VBox" unique_id=640359576]
-layout_mode = 2
-theme_override_constants/separation = 20
-
-[node name="OpponentLabel" type="Label" parent="UI/Root/Margin/VBox/MatchInfo" unique_id=2093076863]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.7, 0.75, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.95, 0.72, 0.35, 1)
+theme_override_font_sizes/font_size = 13
 text = "Opponent  ·  Average"
 
-[node name="EstimateLabel" type="Label" parent="UI/Root/Margin/VBox/MatchInfo" unique_id=1983214397]
+[node name="IntelBox" type="VBoxContainer" parent="UI/Root/Margin/VBox/TopRow/LeftPanel" unique_id=918730972]
 layout_mode = 2
-theme_override_font_sizes/font_size = 13
+size_flags_vertical = 0
+theme_override_constants/separation = 3
 
-[node name="IntelBox" type="VBoxContainer" parent="UI/Root/Margin/VBox" unique_id=918730972]
+[node name="EstimateLabel" type="Label" parent="UI/Root/Margin/VBox/TopRow/LeftPanel" unique_id=1983214397]
 layout_mode = 2
+theme_override_font_sizes/font_size = 12
+
+[node name="RightPanel" type="VBoxContainer" parent="UI/Root/Margin/VBox/TopRow" unique_id=1111000004]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_constants/separation = 5
+
+[node name="WeekMiniLabel" type="Label" parent="UI/Root/Margin/VBox/TopRow/RightPanel" unique_id=1111000005]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.68, 1)
+theme_override_font_sizes/font_size = 12
+text = "Season 1  ·  Week 1"
+horizontal_alignment = 1
+
+[node name="EventLabel" type="Label" parent="UI/Root/Margin/VBox/TopRow/RightPanel" unique_id=2114870579]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.7, 0.25, 1)
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+
+[node name="GoalLabel" type="Label" parent="UI/Root/Margin/VBox/TopRow/RightPanel" unique_id=471816439]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 11
+horizontal_alignment = 1
+autowrap_mode = 3
 
 [node name="SquadHeader" type="Label" parent="UI/Root/Margin/VBox" unique_id=245499006]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.8, 1, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 12
 text = "ACTIVE SQUAD"
 
 [node name="SquadRow" type="HBoxContainer" parent="UI/Root/Margin/VBox" unique_id=944397306]
@@ -101,7 +127,7 @@ theme_override_constants/separation = 12
 [node name="BenchHeader" type="Label" parent="UI/Root/Margin/VBox" unique_id=1412933810]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.45, 0.45, 0.52, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 text = "BENCH"
 
 [node name="BenchRow" type="HBoxContainer" parent="UI/Root/Margin/VBox" unique_id=1429920613]

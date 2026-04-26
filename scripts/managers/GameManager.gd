@@ -104,6 +104,36 @@ func toggle_bench_action(player_name: String) -> void:
 
 
 # ---------------------------------------------------------------------------
+# MARKET BRIDGE METHODS
+# Thin wrappers so UI only talks to GameManager, never PlayerMarket directly.
+# ---------------------------------------------------------------------------
+
+# Open/refresh market — generates fresh candidates if none exist yet.
+func open_market() -> void:
+	if market == null:
+		return
+	market.generate_candidates(players)
+
+
+# True if the player can still make a replacement this season.
+func market_has_slots() -> bool:
+	return market != null and market.has_slots()
+
+
+# Slot display string like "●●○" for the market header.
+func market_slots_display() -> String:
+	return market.slots_display() if market != null else ""
+
+
+# Attempt to hire a candidate into slot at index.
+# Returns true on success, false if no slots remain or invalid index.
+func hire_candidate(candidate: Player, replace_index: int) -> bool:
+	if market == null:
+		return false
+	return market.replace_player(players, candidate, replace_index)
+
+
+# ---------------------------------------------------------------------------
 # ADVANCE WEEK — resolves everything, returns a WeekResult.
 # ---------------------------------------------------------------------------
 func advance_week() -> WeekResult:
@@ -154,7 +184,7 @@ func advance_week() -> WeekResult:
 
 	week_result.won            = match_sim["won"]
 	week_result.team_score     = match_sim["team_score"]
-	week_result.opponent_score = base_opp_score  # show raw to player (not effective)
+	week_result.opponent_score = effective_opp_score  # show effective (what was actually beaten)
 	week_result.player_results = match_sim["players"]
 
 	# --- Post-match stat updates ---
