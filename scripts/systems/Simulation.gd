@@ -110,10 +110,6 @@ static func simulate_player(player: Player, is_important: bool) -> Dictionary:
 # SIMULATE TEAM — runs simulate_player for all players, sums scores, compares to opponent.
 #
 # players: the roster (Array[Player])
-# is_important: passed to each simulate_player call
-# opponent_score: the target to beat
-# modifiers: dict keyed by player_name from IncidentEngine decisions
-# ---------------------------------------------------------------------------
 static func simulate_team(players: Array[Player], is_important: bool, opponent_score: int) -> Dictionary:
 	var player_results: Array = []
 	var team_score: int = 0
@@ -121,7 +117,7 @@ static func simulate_team(players: Array[Player], is_important: bool, opponent_s
 	for player: Player in players:
 		var sim: Dictionary = simulate_player(player, is_important)
 		var score: int      = sim["score"]
-		var flavor_data     = MatchFlavorGenerator.generate(player, score, is_important, sim["trait_label"])
+		var flavor_data: Dictionary = MatchFlavorGenerator.generate(player, score, is_important, sim["trait_label"])
 
 		team_score += score
 		player_results.append({

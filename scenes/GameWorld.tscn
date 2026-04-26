@@ -160,3 +160,43 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 19
 text = "⚡  Next Week"
+
+[node name="GoalBanner" type="PanelContainer" parent="UI/Root" unique_id=1111000010]
+visible = false
+layout_mode = 1
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -72
+grow_vertical = 0
+theme_override_styles/panel = null
+
+[node name="BannerBg" type="ColorRect" parent="UI/Root/GoalBanner" unique_id=1111000011]
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.10, 0.20, 0.10, 0.97)
+
+[node name="BannerMargin" type="MarginContainer" parent="UI/Root/GoalBanner" unique_id=1111000012]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="BannerRow" type="HBoxContainer" parent="UI/Root/GoalBanner/BannerMargin" unique_id=1111000013]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="BannerLabel" type="Label" parent="UI/Root/GoalBanner/BannerMargin/BannerRow" unique_id=1111000014]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.30, 0.95, 0.50, 1)
+text = "Goal complete!"
+
+[node name="BannerDismiss" type="Button" parent="UI/Root/GoalBanner/BannerMargin/BannerRow" unique_id=1111000015]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Dismiss"

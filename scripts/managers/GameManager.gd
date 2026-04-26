@@ -23,6 +23,10 @@ var team_win_streak: int     = 0
 var goal_manager: SeasonGoalManager = null
 var market:       PlayerMarket      = null
 
+# Banner shown on hub after the resolution screen closes.
+# Set by advance_week() when a goal is achieved. Cleared when read by UI.
+var pending_banner: String = ""
+
 var season: int:
 	get: return Calendar.get_season(week)
 var week_in_season: int:
@@ -216,6 +220,15 @@ func advance_week() -> WeekResult:
 
 	week += 1
 	goal_manager.start_new_quarter(week_in_season)
+
+	# --- Set pending banner if a goal just completed ---
+	pending_banner = ""
+	var sg: Dictionary = goal_manager.get_display()
+	var qg: Dictionary = goal_manager.get_quarter_display()
+	if week_result.quarter_bonus != "":
+		pending_banner = "🌟 " + week_result.quarter_bonus
+	elif sg.get("achieved", false):
+		pending_banner = "🏆 Season goal complete! " + sg.get("description", "")
 
 	return week_result
 

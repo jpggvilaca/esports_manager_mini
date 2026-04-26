@@ -255,6 +255,7 @@ func _player_act_event(entry: Dictionary, act_idx: int, player_counters: bool = 
 			match player.stamina_key():
 				"exhausted": notes.append("running on empty")
 				"tired":     notes.append("showing fatigue")
+				"ok":        notes.append("feeling okay")
 				"fresh":     notes.append("fully rested")
 			if player.form_label == "🔥 In Form":
 				notes.append("in form")
@@ -381,22 +382,6 @@ func _reveal_event(event: Dictionary) -> void:
 
 		"bonus":
 			_add_line(event["text"], Color(0.90, 0.70, 0.20, 1.0), 13)
-
-		"cheatsheet_header":
-			_add_spacer()
-			_add_line("TRAIT COUNTER GUIDE", Color(0.38, 0.40, 0.50, 1.0), 10)
-
-		"cheatsheet_row":
-			var mt: String = event["trait"]
-			var beats_names: Array = event["beats"].map(func(t): return GameText.trait_label(t))
-			var weak_names:  Array = event["weak"].map(func(t):  return GameText.trait_label(t))
-			var beats_str: String = "  ↑ " + ", ".join(beats_names) if beats_names.size() > 0 else ""
-			var weak_str:  String = "  ↓ " + ", ".join(weak_names)  if weak_names.size()  > 0 else ""
-			var row_text: String = GameText.trait_label(mt) + beats_str + weak_str
-			# Highlight in blue if this is one of the player's traits
-			var row_col: Color = Color(0.45, 0.75, 1.0, 1.0) if event.get("is_mine", false) \
-				else Color(0.48, 0.50, 0.62, 1.0)
-			_add_line("    " + row_text, row_col, 11)
 
 		"done":
 			_running = false

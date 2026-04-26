@@ -1,18 +1,11 @@
 # scripts/systems/LevelSystem.gd
-# ============================================================
-# LEVEL SYSTEM — XP accumulation and level-up stat growth.
-#
-# Matches → HIGH XP  (main source — playing and performing matters most)
-# Scrims  → MEDIUM XP (balanced prep)
-# Train   → LOW XP   (long-term investment with stamina cost)
-# Intense → LOW-MED XP (high risk, moderate reward)
-# Rest    → ZERO XP  (purely recovery)
+# XP accumulation and level-up stat growth.
+# Matches → main XP source. Train bench action → slow trickle.
 #
 # TO TWEAK XP balance           → edit the XP_ constants below.
 # TO TWEAK level-up speed       → edit LEVEL_THRESHOLDS.
 # TO TWEAK stat growth per level → edit TRAIT_GROWTH.
 # TO TWEAK trait milestone unlocks → edit TRAIT_UNLOCKS.
-# ============================================================
 class_name LevelSystem
 extends RefCounted
 
@@ -28,9 +21,6 @@ const XP_SOLID:     int = 60   # Solid performance (was 50)
 const XP_STRUGGLED: int = 30   # Poor performance (was 20) — losing shouldn't stall growth
 
 const XP_TRAIN:   int = 5
-const XP_SCRIM:   int = 15
-const XP_REST:    int = 0
-const XP_INTENSE: int = 20
 
 const XP_MULT: Dictionary = {
 	"normal":     1.0,
@@ -122,12 +112,6 @@ const TRAIT_UNLOCKS: Dictionary = {
 # PUBLIC API
 # ---------------------------------------------------------------------------
 
-static func award_match_xp(player: Player, perf_label: String, match_type: String) -> Array:
-	var base_xp: int  = _xp_for_label(perf_label)
-	var multiplier: float = XP_MULT.get(match_type, 1.0)
-	return _apply_xp(player, roundi(base_xp * multiplier))
-
-
 static func award_match_xp_with_result(player: Player, perf_label: String, match_type: String, won: bool) -> Array:
 	var base_xp: int      = _xp_for_label(perf_label)
 	var multiplier: float = XP_MULT.get(match_type, 1.0)
@@ -140,8 +124,6 @@ static func award_action_xp(player: Player, action: String) -> Array:
 	var gained: int = 0
 	match action:
 		"train":   gained = XP_TRAIN
-		"scrim":   gained = XP_SCRIM
-		"intense": gained = XP_INTENSE
 	if gained == 0:
 		return []
 	return _apply_xp(player, gained)
