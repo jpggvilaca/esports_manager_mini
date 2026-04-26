@@ -7,40 +7,40 @@
 
 This section exists because the game has several overlapping "trait" concepts. Read this first.
 
-### Player Stats (on Player.gd)
+### Player Stats (`Player.gd`)
 
 | Term | Type | Range | What It Does |
 |------|------|-------|--------------|
-| **skill** | int | 30–65 | Raw mechanical ceiling. The base score in Simulation. Higher = more output per week. Never changes without levelling or market hire. |
-| **focus** | int | 35–75 | Controls score **variance**. High focus = tight, predictable performance. Low focus = wide swings (could be great or terrible). |
-| **stamina** | int | 0–100 | Current energy. Drains 13–18 pts per match played, recovers on bench rest. Below 45 = tired drag on score. Below 25 = exhausted (severe drag). |
-| **morale** | int | 0–100 | Emotional state. Rises on wins, falls on losses (more for important matches). Feeds into the stamina/morale modifier (10% weight on matchup calc). |
-| **xp / level** | int | lv 1–10 | Progression. XP earned each match or training session. Levelling up increases skill by 1 (see LevelSystem.gd). |
-| **burnout** | int | 0–5 | Hidden fatigue counter. Rises each match played or training session, falls on rest. At 3+ a warning shows. High burnout = reduced XP gain. |
-| **hunger** | int | 0–5 | Hidden motivation counter. High hunger = bonus XP. Falls if player rests too often (3+ consecutive rests). |
+| **skill** | int | 30–65 | Raw score ceiling. The base value in Simulation. Grows slowly on level-up. |
+| **focus** | int | 35–75 | Controls score **variance**. High focus = tight performance. Low = wide swings. |
+| **stamina** | int | 0–100 | Current energy. Costs 13 pts per normal match, 18 per important/tournament. Recovers on bench rest (+15, or +23 for lazy). Below 45 = tired drag. Below 25 = exhausted drag. |
+| **morale** | int | 0–100 | Emotional state. +5/+8 on win, -5/-8 on loss (higher delta on important matches). Feeds into the matchup modifier (10% weight). |
+| **xp / level** | int | lv 1–10 | Progression. XP from matches or bench training. Level-up increases skill + other stats per trait growth table. |
+| **burnout** | int | 0–5 | Hidden fatigue counter. Rises on match played (+1) or bench train (+1). Falls on bench rest (-2). At 3+ a warning shows in the UI. No mechanical penalty beyond the warning. |
+| **hunger** | int | 0–5 | Hidden motivation counter. Rises on bench train (+1) or grinder playing (+1). Falls after 3+ consecutive rests (-1). Not currently used in score or XP calculations — reserved for future use. |
 
 ### Traits
 
-There are **two distinct trait layers**. They look similar but serve different purposes.
+There are **two distinct trait layers** plus one minor layer. They look similar but serve completely different purposes.
 
 #### Performance Trait (`primary_trait` on Player)
 The player's personality/playstyle. Affects the **Simulation score** directly.
 
-| Trait | Effect |
-|-------|--------|
-| **clutch** | +10 pts on important/tournament matches. Small variance otherwise. |
-| **choker** | -8 pts on important matches. +4 pts on normal matches (no pressure). |
-| **grinder** | No score bonus. Trains faster (+more XP on bench). Hunger rises faster. |
-| **lazy** | No score bonus. Recovers more stamina when resting on bench. |
-| **consistent** | Tightens focus variance (±5 narrower random swing). |
-| **volatile** | Widens focus variance (+8 wider random swing — could be huge or terrible). |
+| Trait | Effect in Simulation |
+|-------|---------------------|
+| **clutch** | +10 pts on important/tournament matches. ±0–3 random on normal matches. |
+| **choker** | -8 pts on important/tournament matches. +4 pts on normal matches. |
+| **grinder** | No score bonus. On bench: defaults to train. Hunger rises on match played. |
+| **lazy** | No score bonus. On bench rest: recovers +23 stamina instead of +15. |
+| **consistent** | Tightens focus variance by -5 (floor: 2). More predictable output. |
+| **volatile** | Widens focus variance by +8. High peaks, low troughs. |
 | **none** | No special effect. |
 
-#### Match Trait (derived, used by TraitMatchup)
-A strategic category mapped from `primary_trait`. Used **only** for the pre-match matchup modifier — never affects score directly.
+#### Match Trait (derived — used by TraitMatchup only)
+Mapped from `primary_trait`. Used **only** for the matchup modifier calculation — never touches the score.
 
-| primary_trait | match_trait |
-|---------------|-------------|
+| primary_trait | → match_trait |
+|---------------|--------------|
 | clutch | clutch |
 | choker | clutch |
 | grinder | resilient |
@@ -50,61 +50,71 @@ A strategic category mapped from `primary_trait`. Used **only** for the pre-matc
 | none | tactical |
 
 #### Minor Trait (`minor_trait` on Player)
-A secondary modifier affecting stamina drag in Simulation.
+Adjusts the stamina drag floor in Simulation. Unlocked at level milestones (lv 3, 5, 10).
 
-| Minor Trait | Effect |
-|-------------|--------|
-| **resilient** | Higher stamina floor when exhausted (0.80 vs 0.70). Less drag. |
-| **fragile** | Lower stamina floor (0.60). More drag when tired. |
-| **none** | Default floor (0.70). |
+| Minor Trait | Stamina Floor | Effect |
+|-------------|--------------|--------|
+| **resilient** | 0.80 | Less drag when exhausted. |
+| **fragile** | 0.60 | More drag when tired or exhausted. |
+| **none** | 0.70 | Default. |
+
+---
 
 ### The Matchup Modifier
 
-Every week, before the match runs, a **matchup modifier** is calculated. It adjusts the opponent's effective score threshold — it does **not** change the players' Simulation scores.
+Every week, before the match runs, a modifier is calculated and applied to the opponent's effective threshold:
 
 ```
 effective_opponent_score = base_opponent_score - matchup_modifier
 ```
 
-- **Positive modifier** → opponent threshold drops → easier to win
-- **Negative modifier** → opponent threshold rises → harder to win
-- Range: roughly ±20 points
+- **Positive modifier** → threshold drops → easier to win
+- **Negative modifier** → threshold rises → harder to win
+- Range: roughly ±20 points (MAX_BONUS = 20 in TraitMatchup.gd)
+- The **displayed** score on the result screen is the effective threshold, not the base
 
-The modifier has three inputs, weighted:
+Three inputs, weighted:
 
 | Input | Weight | Source |
 |-------|--------|--------|
 | Opponent trait counters | 60% | Your match traits vs opponent's 3 trait slots |
-| Situation coverage | 30% | Your match traits vs Early/Mid/Late situation traits |
-| Stamina/morale | 10% | Average stamina (60%) + morale (40%) across active squad |
+| Situation coverage | 30% | Your match traits vs the 3 phase situations |
+| Stamina/morale | 10% | avg(stamina×0.6 + morale×0.4) across active squad |
 
 ### Opponent Traits (3 slots per match)
-The opponent has 3 match-trait slots drawn per season (seeded, deterministic). Difficulty shifts the pool:
-- **weak/average**: random draw from all 5 match traits
-- **strong**: one trait duplicated (harder to fully counter)
-- **dominant**: biased toward focused + resilient (punishes aggressive/clutch spam)
-- ~30% of weak/average weeks are "situation-dominant" (3 distinct traits, matchup is neutral)
+Seeded per season+week, so they're deterministic. Difficulty biases the pool:
+
+| Difficulty | Pool |
+|-----------|------|
+| weak / average | Random 3 from all 5 match traits |
+| strong | One trait duplicated (harder to fully counter) |
+| dominant | Weighted toward focused + resilient (punishes aggressive/clutch spam) |
+
+~30% of weak/average weeks are **situation-dominant**: 3 fully distinct traits, no counter bias — situations become the primary decision point.
 
 ### Situations (Early / Mid / Late)
-Each match has 2–3 situations, one per phase. Each favors a match trait. If your squad has a player whose match trait matches the situation's favored trait, that situation is **covered** (shown in green on hub and result screen).
+Each match has 2–3 situations (important/tournament always get 3). Each phase favors one match trait. If a squad player's match trait matches the favored trait, that phase is **covered** (green on hub and result screen).
 
-| Situation | Favors |
-|-----------|--------|
+| Situation | Favors Match Trait |
+|-----------|-------------------|
 | Early Pressure | aggressive |
 | Control Phase | tactical |
 | Precision Phase | focused |
 | Clutch Moment | clutch |
 | Endurance Phase | resilient |
 
-### The Score Formula (simplified)
+---
+
+### The Score Formula (per player)
 
 ```
-1. base = player.skill
-2. apply stamina drag → multiplier 0.70–1.0 based on stamina (minor trait adjusts floor)
-3. focus roll → ±rand(4–22) depending on focus stat and performance trait
-4. trait bonus → +10 clutch on big match, -8 choker on big match, etc.
-5. sum across 3 active players → team_score
-6. compare team_score >= effective_opponent_score → win/loss
+1. base         = player.skill
+2. stamina drag = base × stamina_multiplier  (0.60–1.0 depending on stamina + minor trait)
+3. focus roll   = ±rand(2–22)  (range tightened by consistent, widened by volatile)
+4. trait bonus  = clutch: +10 on big match / choker: -8 on big match, +4 on normal
+5. player score = clamp(result, 0, ∞)
+6. team_score   = sum of all active player scores
+7. win          = team_score >= effective_opponent_score
 ```
 
 ---
@@ -112,107 +122,110 @@ Each match has 2–3 situations, one per phase. Each favors a match trait. If yo
 ## Architecture
 
 ```
-GameManager          — orchestrator. Owns players[], week, season, goal_manager, market.
+GameManager            — orchestrator. Owns players[], week, season, goal_manager, market, pending_banner.
   ↓ calls
-  TraitMatchup       — pure static. Generates opponent traits, situations, calculates modifier.
-  Simulation         — pure static. Simulates each player's score. Returns team_score.
-  LevelSystem        — pure static. XP thresholds, level-up logic.
-  SeasonGoalManager  — tracks season + quarter goals.
-  PlayerMarket       — generates candidates, handles replacements (2/season).
-  Calendar           — week→match type lookup table. All week data is here.
+  TraitMatchup         — pure static. Opponent traits, situations, matchup modifier.
+  Simulation           — pure static. Per-player score. Returns team_score + breakdown.
+  LevelSystem          — pure static. XP thresholds, level-up stat growth, trait unlocks.
+  MatchFlavorGenerator — pure static. Flavor text and perf label per player score.
+  SeasonGoalManager    — season + quarter goal tracking. Quarter bonuses.
+  PlayerMarket         — candidate generation and slot logic (accessed via GameManager bridge only).
+  Calendar             — 24-week season template. Match types, opponent names, difficulty labels.
 
-GameWorld (scene)    — hub screen. Reads get_week_context(), calls advance_week().
-  ↓ opens
-  RosterScreen       — squad selection + bench action toggle (train/rest).
-  ResolutionScreen   — animated match result sequence.
-  MarketOverlay      — candidate browse + hire flow.
+GameWorld.tscn         — hub screen. Left: match intel. Right: goals.
+  ↓ opens (as $UI children)
+  RosterScreen.tscn    — squad selection + bench train/rest toggle.
+  ResolutionScreen.tscn — animated match log. Three-act sequence + debrief + goal banner.
+  MarketOverlay.tscn   — candidate browse + hire flow. Available weeks 4, 8, 12 per season.
 ```
 
 ### Data Flow Per Week
 
 ```
-1. Hub refresh: GameManager.get_week_context()
-   → generates opponent traits + situations (seeded, deterministic)
-   → shows prognosis: Early/Mid/Late with coverage colors
-   → shows win estimate
+1. Hub refresh — GameManager.get_week_context()
+   → deterministic opponent traits + situations for this week
+   → prognosis panel: Early/Mid/Late with green/red coverage
+   → win estimate label
 
-2. Player adjusts:
-   → Roster: toggle active/bench players
-   → Bench cards: toggle train vs rest for each benched player
-   → Market (if week % 4 == 0): browse and hire candidates
+2. Player adjusts squad
+   → Roster screen: click to activate/bench players
+   → Bench cards: toggle train (XP, -5 stamina) or rest (+15/+23 stamina, +5 morale)
+   → Market (weeks 4, 8, 12): browse candidates, replace a roster slot (2 slots/season)
 
-3. "Next Week" pressed → GameManager.advance_week()
-   → bench outcomes: rest restores stamina/morale; train gives XP
+3. "Next Week" — GameManager.advance_week()
+   → bench outcomes applied first (train XP / rest recovery)
    → matchup modifier calculated
-   → Simulation runs for active squad
+   → Simulation.simulate_team() runs for active squad
+   → stamina cost deducted, morale updated, streaks updated
    → XP awarded, level-ups processed
-   → goals checked
+   → SeasonGoalManager checks goals; triggers quarter bonus if earned
+   → pending_banner set if a goal just completed
 
-4. ResolutionScreen plays the event sequence
-   → Early/Mid/Late acts
-   → Debrief: what countered what (green/red)
-   → Level-ups, quarter bonus
-   → Close → hub refreshes
+4. ResolutionScreen plays the event log
+   → Header → bench lines
+   → Early / Mid / Late acts (player lines colored by counter status in Mid act)
+   → VICTORY / DEFEAT + effective score vs threshold
+   → Debrief: opponent slots (green = countered, red = punished) + situation coverage
+   → Level-up announcements, quarter bonus line
+   → Continue → hub refreshes → goal banner shown if pending
 ```
 
 ---
 
-## Scene + Script Reference
+## File Reference
 
 | File | Purpose |
 |------|---------|
-| `scenes/GameWorld.gd/.tscn` | Hub screen. Two-column layout: left=match intel, right=goals. |
-| `scenes/RosterScreen.gd/.tscn` | Squad overlay. Click to activate/bench. Toggle train/rest per bench player. |
-| `scenes/ResolutionScreen.gd/.tscn` | Animated result log. Three-act sequence + debrief. |
-| `ui/components/MarketOverlay.gd/.tscn` | Market overlay. Browse candidates, confirm replacement. |
+| `scenes/GameWorld.gd/.tscn` | Hub. Match intel left, goals right. Builds PlayerCard rows. |
+| `scenes/RosterScreen.gd/.tscn` | Squad overlay. PlayerCard instances + invisible click overlay button. |
+| `scenes/ResolutionScreen.gd/.tscn` | Animated result log. Event queue + timed reveal. |
+| `ui/components/MarketOverlay.gd/.tscn` | Market overlay. RosterCard + CandidateCard instances. |
+| `ui/components/PlayerCard.gd/.tscn` | Reusable hub/roster card. Setup + bench toggle signal. |
+| `ui/components/RosterCard.gd/.tscn` | Market "Your Team" column card. Data binding only. |
+| `ui/components/CandidateCard.gd/.tscn` | Market "Available" column card. Data binding only. |
 | `scripts/player/Player.gd` | Data class. All player state. No logic. |
-| `scripts/managers/GameManager.gd` | Orchestrator. All game logic entry points. UI talks here only. |
-| `scripts/managers/PlayerMarket.gd` | Candidate generation + slot logic. Only accessed via GameManager bridge methods. |
-| `scripts/managers/SeasonGoalManager.gd` | Season + quarter goal tracking. |
-| `scripts/systems/TraitMatchup.gd` | Matchup modifier math. Pure static. |
+| `scripts/managers/GameManager.gd` | Orchestrator. All game logic entry points. UI calls here only. |
+| `scripts/managers/PlayerMarket.gd` | Candidate generation + hire logic. Never called directly by UI. |
+| `scripts/managers/SeasonGoalManager.gd` | Season + quarter goals. Quarter boundary detection. |
+| `scripts/systems/TraitMatchup.gd` | Matchup modifier math. Pure static. Single source of truth for SITUATION_FAVORS. |
 | `scripts/systems/Simulation.gd` | Per-player score simulation. Pure static. |
-| `scripts/systems/LevelSystem.gd` | XP + level-up logic. Pure static. |
-| `scripts/systems/MatchFlavorGenerator.gd` | Flavor text for player actions. |
-| `scripts/data/Calendar.gd` | 12-week season schedule. Match types, difficulty labels. |
-| `scripts/data/GameText.gd` | All display strings, icons, labels, colors. Single source of truth for text. |
-| `scripts/data/WeekResult.gd` | Result container passed from GameManager → ResolutionScreen. |
+| `scripts/systems/LevelSystem.gd` | XP + level-up stat growth. Pure static. |
+| `scripts/systems/MatchFlavorGenerator.gd` | Flavor text per player score. Pure static. |
+| `scripts/data/Calendar.gd` | 24-week season schedule. All match type/difficulty/opponent data. |
+| `scripts/data/GameText.gd` | All display strings, icons, labels. Single source of truth for text. |
+| `scripts/data/WeekResult.gd` | Data container: GameManager → ResolutionScreen. |
+| `scripts/data/MatchResult.gd` | Compatibility shim: WeekResult → SeasonGoalManager. |
 
 ---
 
-## Balance Knobs (where to tweak things)
+## Balance Knobs
 
-| What to change | Where |
-|----------------|-------|
-| Player starting stats | `GameManager._init()` |
-| Match scoring weights | `Simulation.simulate_player()` |
-| Stamina drag curve | `Simulation._stamina_multiplier()` |
-| XP per match/action | `LevelSystem.gd` constants |
-| Matchup modifier range | `TraitMatchup.MAX_BONUS` (currently 20) |
-| Matchup weights (60/30/10) | `TraitMatchup.calc_modifier()` |
-| Opponent difficulty bias | `TraitMatchup.generate_opponent_traits()` |
-| Situation-dominant week rate | `TraitMatchup.generate_opponent_traits()` — `randi() % 10 < 3` |
-| Market timing | `PlayerMarket.MARKET_INTERVAL` (currently every 4 weeks) |
-| Market replacements/season | `PlayerMarket.MAX_REPLACEMENTS_PER_SEASON` (currently 2) |
-| Season length | `Calendar.gd` |
-| Win/loss morale deltas | `GameManager._apply_morale()` |
-| Stamina cost per match | `GameManager._apply_match_stamina_cost()` — 13 normal, 18 important |
-| Rest stamina recovery | `GameManager._resolve_bench()` — 15 pts (23 for lazy) |
+Everything tweakable and where to find it:
 
----
-
-## What Was Built (Session History Summary)
-
-- Full trait matchup system (Pokémon-type counters)
-- Hub UI: two-column layout, green/red prognosis coloring, win estimate
-- Roster screen: click to activate/bench, train/rest toggle per bench player
-- Resolution screen: three-act sequence, colored debrief (what countered what)
-- Market overlay: candidate browse, confirm-then-replace flow (2 slots/season)
-- Balance fixes: dominant trio prevention, situation-dominant weeks (~30%)
-- Score display: shows effective threshold (base minus modifier)
-
-## Pending / Not Yet Built
-
-- Per-act simulation (3 separate mini-sims instead of 1 split by narrative)
-- Calendar view on hub (next 6 weeks visible)
-- Season-end awards ceremony
-- Sound effects
+| What | Where | Current Value |
+|------|-------|--------------|
+| Squad size | `GameManager.SQUAD_SIZE` | 3 |
+| Season length | `Calendar.WEEKS_PER_SEASON` | 24 weeks |
+| Max seasons | `Calendar.MAX_SEASONS` | 10 (-1 = infinite) |
+| Season difficulty ramp | `Calendar.SEASON_DIFFICULTY_STEP` | +8% per season |
+| Match stamina cost | `GameManager._apply_match_stamina_cost()` | 13 normal, 18 important |
+| Bench rest recovery | `GameManager._resolve_bench()` | +15 stamina (+23 lazy), +5 morale |
+| Bench train cost | `GameManager._resolve_bench()` | -5 stamina |
+| Bench train XP | `LevelSystem.XP_TRAIN` | 5 XP |
+| Match XP (carried/solid/struggled) | `LevelSystem.XP_CARRIED/SOLID/STRUGGLED` | 100 / 60 / 30 |
+| Match XP loss multiplier | `LevelSystem.XP_LOSS_MULT` | ×0.55 |
+| Match type XP multiplier | `LevelSystem.XP_MULT` | normal ×1.0, important ×1.5, tournament ×3.0 |
+| Level thresholds | `LevelSystem.LEVEL_THRESHOLDS` | 90 / 160 / 240 … 1140 |
+| Stat growth per level | `LevelSystem.TRAIT_GROWTH` | varies by trait |
+| Minor trait unlocks | `LevelSystem.TRAIT_UNLOCKS` | lv 3, 5, 10 |
+| Matchup modifier max range | `TraitMatchup.MAX_BONUS` | ±20 points |
+| Matchup weights | `TraitMatchup.calc_modifier()` | 60% / 30% / 10% |
+| Situation-dominant week rate | `TraitMatchup.generate_opponent_traits()` | ~30% of weak/avg weeks |
+| Market interval | `PlayerMarket.MARKET_INTERVAL` | every 4 weeks (weeks 4, 8, 12) |
+| Market slots per season | `PlayerMarket.MAX_REPLACEMENTS_PER_SEASON` | 2 |
+| Candidate starting level | `PlayerMarket.CANDIDATE_START_LEVEL` | 2 |
+| Win/loss morale deltas | `GameManager._apply_morale()` | ±5 normal, ±8 important |
+| Stamina drag floors | `Simulation._stamina_multiplier()` | 0.70 base, 0.60 fragile, 0.80 resilient |
+| Clutch bonus | `Simulation.simulate_player()` | +10 on important/tournament |
+| Choker penalty | `Simulation.simulate_player()` | -8 on important/tournament, +4 on normal |
+| Quarter bonus reward | `SeasonGoalManager.consume_quarter_bonus()` | +10 morale, +50 XP all active players |
