@@ -64,9 +64,8 @@ func setup(
 	_name_label.add_theme_color_override("font_color",
 		Color(1, 1, 1) if is_active else Color(0.60, 0.60, 0.65))
 
-	# Trait — performance · match trait
-	var mt: String = TraitMatchup.TRAIT_TO_MATCH.get(player.primary_trait, "tactical")
-	_trait_label.text = GameText.trait_label(player.primary_trait) + "  ·  " + GameText.trait_label(mt)
+	# Trait — single unified trait label
+	_trait_label.text = GameText.trait_label(player.primary_trait)
 
 	# Stamina bar
 	_stamina_bar.value    = player.stamina

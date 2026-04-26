@@ -91,9 +91,9 @@ func _build_event_queue() -> void:
 
 		_events.append({ "type": "situation", "text": act_situations[act_idx] })
 		for entry in pr:
-			# Check if this player's match trait counters any opponent trait
+			# Unified trait — primary_trait IS the match trait, no mapping needed
 			var p: Player = entry["player"]
-			var p_mt: String = TraitMatchup.TRAIT_TO_MATCH.get(p.primary_trait, "tactical")
+			var p_mt: String = p.primary_trait
 			var opp_traits: Array = _result.opponent_traits
 			var player_counters: bool = false
 			var player_countered: bool = false

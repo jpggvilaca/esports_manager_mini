@@ -3,14 +3,28 @@
 # MATCH SIMULATION — pure functions, no side effects.
 # Takes a Player's current stats and returns a match score + breakdown.
 #
+# UNIFIED TRAIT SYSTEM:
+#   Every player has ONE primary_trait from the set:
+#   aggressive | tactical | focused | clutch | resilient | volatile
+#
+#   Each trait affects BOTH simulation (here) AND matchup (TraitMatchup.gd).
+#
 # PERFORMANCE FORMULA (order of application):
 #   1. Skill         → base score
 #   2. Stamina drag  → continuous multiplier (always active)
-#   3. Focus         → controls score variance (higher focus = smaller random swings)
-#   4. Trait effects → situational bonuses/penalties
+#   3. Focus         → controls score variance (higher focus = smaller swing)
+#   4. Trait effects → simulation bonuses / variance modifiers
 #
 # HIGH SKILL ALONE DOES NOT GUARANTEE VICTORY.
 # A 90-skill player at 10 stamina will underperform a 60-skill fresh player.
+#
+# TRAIT SIMULATION EFFECTS:
+#   aggressive → variance +8; stamina drains faster (lower floor)
+#   tactical   → variance -4; no floor modifier
+#   focused    → variance -6; +5 on important matches
+#   clutch     → +12 on important; small variance in normal games
+#   resilient  → stamina floor raised; no variance modifier
+#   volatile   → variance +14; big swing either way
 #
 # TO TWEAK stamina drag    → edit _stamina_multiplier()
 # TO TWEAK focus variance  → edit the rand_range_val section in simulate_player()
@@ -27,40 +41,36 @@ extends RefCounted
 # breakdown entries: { "reason": String, "delta": int }
 #
 # is_important: true for important matches, tournaments, and solos.
-#   This flag amplifies clutch/choker trait effects.
-# modifiers: optional dict of { score_bonus, morale_gain, morale_loss } from incidents.
+#   Amplifies clutch and focused trait effects.
 # ---------------------------------------------------------------------------
 static func simulate_player(player: Player, is_important: bool) -> Dictionary:
 	var breakdown: Array = []
 
 	# --- STEP 1: Skill base ---
-	# Skill is the raw mechanical ceiling. All other factors modify it.
 	var score: float = player.skill
 
 	# --- STEP 2: Stamina drag (continuous, always active) ---
-	# Unlike a cliff-penalty, this is a smooth multiplier.
-	# A fully rested player performs at 100% of their skill.
-	# An exhausted player performs at ~70% regardless of other stats.
-	# fragile minor trait makes the drag kick in harder (lower floor).
-	# resilient minor trait resists the drag (higher floor).
 	var minor_traits: Array = player.get_minor_traits()
-	var stamina_mult: float = _stamina_multiplier(player.stamina, minor_traits)
+	var primary_trait: String = player.primary_trait
+	var stamina_mult: float = _stamina_multiplier(player.stamina, minor_traits, primary_trait)
 	var drag_delta: int     = int(player.skill * stamina_mult) - player.skill
-	# drag_delta is zero or negative — only record it if it's actually hurting.
 	if drag_delta < 0:
 		score += drag_delta
 		breakdown.append({ "reason": "Tired legs", "delta": drag_delta })
 
 	# --- STEP 3: Focus variance ---
-	# High focus → tight performance (small random swing).
-	# Low focus  → wide variance (could go well or badly).
-	# consistent trait tightens variance further; volatile widens it.
+	# High focus → tight performance. Low focus → wide variance.
+	# Trait modifies the variance range on top of focus.
 	var focus_factor: float = player.focus / 100.0
 	var rand_range_val: int = int(lerp(22.0, 4.0, focus_factor))
-	if player.primary_trait == "consistent":
-		rand_range_val = max(rand_range_val - 5, 2)
-	elif player.primary_trait == "volatile":
-		rand_range_val += 8
+
+	match primary_trait:
+		"focused":    rand_range_val = max(rand_range_val - 6, 2)   # precision: tightest variance
+		"tactical":   rand_range_val = max(rand_range_val - 4, 2)   # structured: steady
+		"aggressive": rand_range_val += 8                            # explosive: wide swings
+		"volatile":   rand_range_val += 14                           # chaos: biggest swings
+		# clutch, resilient: no variance modifier — their effect is situational/stamina
+
 	var focus_roll: int = randi_range(-rand_range_val, rand_range_val)
 	score += focus_roll
 	if focus_roll > 0:
@@ -69,30 +79,34 @@ static func simulate_player(player: Player, is_important: bool) -> Dictionary:
 		breakdown.append({ "reason": "Off read", "delta": focus_roll })
 
 	# --- STEP 4: Primary trait effects ---
-	# Traits are situational — they fire based on match context.
-	# TO ADD A NEW TRAIT → add a new branch here and in GameText.FLAVOR.
 	var trait_delta: int    = 0
 	var trait_label: String = ""
-	match player.primary_trait:
+
+	match primary_trait:
 		"clutch":
-			# Clutch players spike on important matches. In normal games, small variance.
+			# Spikes on important matches. Small noise in normal games.
 			if is_important:
-				trait_delta = 10
+				trait_delta = 12
 				trait_label = "⚡ Clutch moment"
 			else:
 				trait_delta = randi_range(-3, 3)
 				trait_label = "" if trait_delta == 0 else "⚡ Clutch"
-		"choker":
-			# Chokers crumble on important matches but thrive with no pressure.
+		"focused":
+			# Small but consistent bonus on important matches (precision under pressure).
 			if is_important:
-				trait_delta = -8
-				trait_label = "😰 Choked"
+				trait_delta = 5
+				trait_label = "🎯 Locked in"
+		"volatile":
+			# Extra spike chance — coin-flip direction, high magnitude.
+			var spike: int = randi_range(0, 1)
+			if spike == 1:
+				trait_delta = randi_range(5, 12)
+				trait_label = "🌀 Hot streak"
 			else:
-				trait_delta = 4
-				trait_label = "😌 No pressure"
-		# grinder, lazy, consistent, volatile: their effects are in training/stamina,
-		# not direct score bonuses. See GameManager.apply_actions() and _stamina_multiplier().
-		"grinder", "lazy", "consistent", "volatile", "none":
+				trait_delta = randi_range(-12, -5)
+				trait_label = "🌀 Off day"
+		# aggressive, tactical, resilient: their effects are stamina/variance-based (Steps 2–3).
+		"aggressive", "tactical", "resilient":
 			pass
 
 	if trait_delta != 0:
@@ -107,9 +121,8 @@ static func simulate_player(player: Player, is_important: bool) -> Dictionary:
 
 
 # ---------------------------------------------------------------------------
-# SIMULATE TEAM — runs simulate_player for all players, sums scores, compares to opponent.
-#
-# players: the roster (Array[Player])
+# SIMULATE TEAM — runs simulate_player for all players, sums scores.
+# ---------------------------------------------------------------------------
 static func simulate_team(players: Array[Player], is_important: bool, opponent_score: int) -> Dictionary:
 	var player_results: Array = []
 	var team_score: int = 0
@@ -142,22 +155,27 @@ static func simulate_team(players: Array[Player], is_important: bool, opponent_s
 #
 # Returns a multiplier applied to base skill:
 #   1.0 at full stamina  → no drag
-#   ~0.7 at zero stamina → 30% reduction
+#   ~0.70 at zero stamina → 30% reduction (base)
 #
-# The curve is linear between FLOOR and 1.0.
-# TO TWEAK: raise floor to make stamina less punishing, lower it for harsher penalty.
-# fragile trait lowers the floor (more drag), resilient raises it (less drag).
+# aggressive lowers the floor (burns harder, drains faster).
+# resilient raises the floor (endurance — holds together under fatigue).
+# fragile minor trait further lowers; resilient minor trait further raises.
 # ---------------------------------------------------------------------------
-static func _stamina_multiplier(stamina: int, minor_traits: Array) -> float:
-	# Base performance floor at zero stamina.
-	# TO TWEAK: change BASE_FLOOR to make exhaustion more or less punishing.
-	const BASE_FLOOR: float    = 0.70
-	const FRAGILE_FLOOR: float = 0.60  # fragile players fall apart when tired
-	const RESILIENT_FLOOR: float = 0.80  # resilient players hold together better
+static func _stamina_multiplier(stamina: int, minor_traits: Array, primary_trait: String) -> float:
+	const BASE_FLOOR:      float = 0.70
+	const FRAGILE_FLOOR:   float = 0.60
+	const RESILIENT_FLOOR: float = 0.80
 
 	var floor_val: float = BASE_FLOOR
+
+	# Primary trait modifier
+	if primary_trait == "aggressive":
+		floor_val = 0.65   # burns hot, pays a stamina cost
+	elif primary_trait == "resilient":
+		floor_val = 0.80   # endurance: holds form under fatigue
+
+	# Minor trait override (takes priority over primary)
 	if "fragile"   in minor_traits: floor_val = FRAGILE_FLOOR
 	if "resilient" in minor_traits: floor_val = RESILIENT_FLOOR
 
-	# Linear interpolation: stamina 0 → floor_val, stamina 100 → 1.0
 	return lerp(floor_val, 1.0, clampf(stamina / 100.0, 0.0, 1.0))

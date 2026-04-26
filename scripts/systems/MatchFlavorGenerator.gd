@@ -31,8 +31,6 @@ static func _get_flavor(player: Player, score: int, is_important: bool) -> Strin
 	if is_important:
 		if is_high: return GameText.flavor(t, "important_high_streak" if win_streak  else "important_high")
 		if is_low:  return GameText.flavor(t, "important_low_streak"  if loss_streak else "important_low")
-	else:
-		if is_high and t == "choker": return GameText.flavor(t, "normal_high")
 
 	if is_high: return GameText.flavor(t, "high_streak" if win_streak else "high")
 	if is_low:  return GameText.flavor(t, "low_streak"  if loss_streak else "low")

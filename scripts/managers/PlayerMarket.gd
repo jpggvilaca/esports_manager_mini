@@ -44,60 +44,71 @@ const CANDIDATE_START_LEVEL: int = 2
 # TO ADD A NEW ARCHETYPE → append a new dict to this array.
 # ---------------------------------------------------------------------------
 const ARCHETYPES: Array = [
-	# The Specialist — high skill ceiling, but stamina-fragile
+	# The Clutch Player — spikes on important matches, fragile stamina
 	{
-		"names":        ["Kira", "Raze", "Echo", "Volt"],
-		"primary":      "clutch",
-		"minor":        "fragile",
-		"skill":        [48, 58],
-		"focus":        [35, 50],
-		"stamina":      [30, 45],
-		"morale":       [45, 65],
-		"bio":          "Peaks in the big moments but burns out fast.",
+		"names":   ["Kira", "Raze", "Echo", "Volt"],
+		"primary": "clutch",
+		"minor":   "fragile",
+		"skill":   [48, 58],
+		"focus":   [35, 50],
+		"stamina": [30, 45],
+		"morale":  [45, 65],
+		"bio":     "Peaks in the big moments but burns out fast.",
 	},
-	# The Workhorse — great stamina, consistent output, lower ceiling
+	# The Resilient — endurance king, lower skill ceiling, never folds
 	{
-		"names":        ["Dex", "Mako", "Fen", "Cruz"],
-		"primary":      "grinder",
-		"minor":        "resilient",
-		"skill":        [32, 44],
-		"focus":        [40, 55],
-		"stamina":      [60, 75],
-		"morale":       [50, 60],
-		"bio":          "Won't dazzle you, but never lets you down.",
+		"names":   ["Dex", "Mako", "Fen", "Cruz"],
+		"primary": "resilient",
+		"minor":   "resilient",
+		"skill":   [32, 44],
+		"focus":   [40, 55],
+		"stamina": [60, 75],
+		"morale":  [50, 60],
+		"bio":     "Won't dazzle you, but never lets you down.",
 	},
-	# The Wildcard — volatile with high focus, unpredictable results
+	# The Volatile — huge swings, unpredictable, high skill ceiling
 	{
-		"names":        ["Zyx", "Jinx", "Kael", "Nyx"],
-		"primary":      "volatile",
-		"minor":        "none",
-		"skill":        [38, 55],
-		"focus":        [55, 70],
-		"stamina":      [40, 55],
-		"morale":       [35, 55],
-		"bio":          "You never know what you'll get. That's the point.",
+		"names":   ["Zyx", "Jinx", "Kael", "Nyx"],
+		"primary": "volatile",
+		"minor":   "none",
+		"skill":   [38, 55],
+		"focus":   [45, 60],
+		"stamina": [40, 55],
+		"morale":  [35, 55],
+		"bio":     "You never know what you'll get. That's the point.",
 	},
-	# The Anchor — consistent, high focus, low drama, low ceiling
+	# The Focused — precision and discipline, reliable on big stages
 	{
-		"names":        ["Sola", "Yuri", "Hemi", "Pell"],
-		"primary":      "consistent",
-		"minor":        "resilient",
-		"skill":        [30, 42],
-		"focus":        [60, 75],
-		"stamina":      [50, 65],
-		"morale":       [55, 70],
-		"bio":          "Reads the game better than anyone. Won't carry, won't lose it either.",
+		"names":   ["Sola", "Yuri", "Hemi", "Pell"],
+		"primary": "focused",
+		"minor":   "resilient",
+		"skill":   [30, 42],
+		"focus":   [60, 75],
+		"stamina": [50, 65],
+		"morale":  [55, 70],
+		"bio":     "Reads the game better than anyone. Tight variance, bonus on big matches.",
 	},
-	# The Glass Cannon — very high skill, very low stamina
+	# The Aggressive — high skill, low stamina, explosive early phase
 	{
-		"names":        ["Vex", "Skar", "Lyra", "Thorn"],
-		"primary":      "choker",
-		"minor":        "fragile",
-		"skill":        [52, 65],
-		"focus":        [30, 48],
-		"stamina":      [25, 40],
-		"morale":       [40, 60],
-		"bio":          "Incredible numbers when fresh. Collapses under pressure or fatigue.",
+		"names":   ["Vex", "Skar", "Lyra", "Thorn"],
+		"primary": "aggressive",
+		"minor":   "fragile",
+		"skill":   [52, 65],
+		"focus":   [30, 48],
+		"stamina": [25, 40],
+		"morale":  [40, 60],
+		"bio":     "Incredible numbers when fresh. High variance, fades under fatigue.",
+	},
+	# The Tactical — structured, mid-game specialist, focus-heavy
+	{
+		"names":   ["Brix", "Cael", "Oryn", "Sable"],
+		"primary": "tactical",
+		"minor":   "none",
+		"skill":   [36, 50],
+		"focus":   [55, 72],
+		"stamina": [45, 60],
+		"morale":  [50, 65],
+		"bio":     "Methodical and structured. Thrives in the mid-game. Punishes aggressive players.",
 	},
 ]
 

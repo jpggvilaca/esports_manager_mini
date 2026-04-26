@@ -64,13 +64,13 @@ const LEVEL_UP_FOCUS_BASE:   int = 0
 const LEVEL_UP_MORALE_BASE:  int = 0
 
 const TRAIT_GROWTH: Dictionary = {
-	"clutch":    { "skill": 3, "stamina": 1, "focus": 1, "morale": 2 },
-	"choker":    { "skill": 3, "stamina": 2, "focus": 0, "morale": 0 },
-	"grinder":   { "skill": 2, "stamina": 3, "focus": 1, "morale": 1 },
-	"lazy":      { "skill": 1, "stamina": 2, "focus": 0, "morale": 3 },
-	"consistent":{ "skill": 2, "stamina": 1, "focus": 3, "morale": 1 },
-	"volatile":  { "skill": 3, "stamina": 1, "focus": 3, "morale": 0 },
-	"none":      { "skill": 2, "stamina": 2, "focus": 2, "morale": 1 },
+	# Unified traits — each has a stat growth identity that matches their playstyle.
+	"aggressive": { "skill": 3, "stamina": 1, "focus": 1, "morale": 2 },  # high skill ceiling, burns stamina
+	"tactical":   { "skill": 2, "stamina": 2, "focus": 3, "morale": 1 },  # focus-heavy, consistent growth
+	"focused":    { "skill": 2, "stamina": 1, "focus": 3, "morale": 1 },  # precision: focus is the priority
+	"clutch":     { "skill": 3, "stamina": 1, "focus": 1, "morale": 3 },  # morale-driven, big moments
+	"resilient":  { "skill": 1, "stamina": 3, "focus": 1, "morale": 2 },  # endurance: stamina is the priority
+	"volatile":   { "skill": 3, "stamina": 1, "focus": 2, "morale": 0 },  # boom-bust: high skill, no morale
 }
 
 
@@ -78,32 +78,23 @@ const TRAIT_GROWTH: Dictionary = {
 # TRAIT UNLOCKS — minor traits granted at milestone levels.
 # ---------------------------------------------------------------------------
 const TRAIT_UNLOCKS: Dictionary = {
+	# Level 3: minor trait unlocked based on primary trait identity.
 	3: {
-		"clutch":    "resilient",
-		"choker":    "fragile",
-		"grinder":   "resilient",
-		"lazy":      "fragile",
-		"consistent":"resilient",
-		"volatile":  "fragile",
-		"none":      "resilient",
+		"aggressive": "fragile",    # burns hard — takes a toll
+		"tactical":   "resilient",  # disciplined — holds together
+		"focused":    "resilient",  # precision — consistent under fatigue
+		"clutch":     "resilient",  # clutch players find reserves
+		"resilient":  "resilient",  # doubles down on endurance
+		"volatile":   "fragile",    # chaos costs
 	},
-	5: {
-		"clutch":    "none",
-		"choker":    "none",
-		"grinder":   "none",
-		"lazy":      "none",
-		"consistent":"none",
-		"volatile":  "none",
-		"none":      "none",
-	},
+	# Level 10: all survivors earn resilient — they've earned their stamina.
 	10: {
-		"clutch":    "resilient",
-		"choker":    "resilient",
-		"grinder":   "resilient",
-		"lazy":      "resilient",
-		"consistent":"resilient",
-		"volatile":  "resilient",
-		"none":      "resilient",
+		"aggressive": "resilient",
+		"tactical":   "resilient",
+		"focused":    "resilient",
+		"clutch":     "resilient",
+		"resilient":  "resilient",
+		"volatile":   "resilient",
 	},
 }
 
@@ -164,7 +155,7 @@ static func _apply_xp(player: Player, amount: int) -> Array:
 		player.xp    -= threshold
 		player.level += 1
 
-		var growth: Dictionary = TRAIT_GROWTH.get(player.primary_trait, TRAIT_GROWTH["none"])
+		var growth: Dictionary = TRAIT_GROWTH.get(player.primary_trait, TRAIT_GROWTH["tactical"])
 		var skill_gain:   int = LEVEL_UP_SKILL_BASE   + randi_range(0, growth["skill"])
 		var stamina_gain: int = LEVEL_UP_STAMINA_BASE + randi_range(0, growth["stamina"])
 		var focus_gain:   int = LEVEL_UP_FOCUS_BASE   + randi_range(0, growth["focus"])
@@ -176,7 +167,7 @@ static func _apply_xp(player: Player, amount: int) -> Array:
 
 		var trait_unlocked: String = "none"
 		if TRAIT_UNLOCKS.has(player.level):
-			var candidate: String = TRAIT_UNLOCKS[player.level].get(player.primary_trait, "none")
+			var candidate: String = TRAIT_UNLOCKS[player.level].get(player.primary_trait, "none")  # "none" = no unlock at this level
 			if candidate != "none":
 				if player.minor_trait == "none" or player.minor_trait == "":
 					player.minor_trait = candidate

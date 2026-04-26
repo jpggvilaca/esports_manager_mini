@@ -35,20 +35,20 @@ var week_in_season: int:
 
 func _init() -> void:
 	var apex  := Player.new("Apex",  50, 50, 65, 55, "clutch",    "resilient")
-	var byte_ := Player.new("Byte",  43, 38, 60, 50, "grinder",   "none")
+	var byte_ := Player.new("Byte",  43, 38, 60, 50, "resilient", "none")
 	var ghost := Player.new("Ghost", 38, 45, 62, 45, "volatile",  "fragile")
-	var kira  := Player.new("Kira",  40, 52, 70, 60, "consistent","none")
-	var rex   := Player.new("Rex",   35, 40, 75, 48, "lazy",      "none")
+	var kira  := Player.new("Kira",  40, 52, 70, 60, "focused",   "none")
+	var rex   := Player.new("Rex",   35, 40, 75, 48, "aggressive","none")
 	apex.bio  = "Mechanical prodigy who thrives under pressure — drifts in routine weeks."
-	byte_.bio = "Grinds harder than anyone. Slow to start, relentless by mid-season."
+	byte_.bio = "Endurance is everything. Holds form long after others fade."
 	ghost.bio = "Unpredictable and fragile. On a good day, unplayable. On a bad one, invisible."
-	kira.bio  = "Steady and focused. Never the hero, never the disaster."
+	kira.bio  = "Steady and precise. Bonus in big matches. Tight variance, no drama."
 	rex.bio   = "Explosive when fresh. Fades fast if you overplay him."
 	players   = [apex, byte_, ghost, kira, rex]
-	# Default squad: first 3 active; grinder defaults to train on bench
+	# Default squad: first 3 active; resilient defaults to train on bench
 	for i in players.size():
 		players[i].is_active = i < SQUAD_SIZE
-	byte_.bench_action = "train"  # Grinder default
+	byte_.bench_action = "train"  # Endurance player default
 	goal_manager = SeasonGoalManager.new()
 	market       = PlayerMarket.new()
 
@@ -164,17 +164,16 @@ func advance_week() -> WeekResult:
 	var situations:       Array[String] = TraitMatchup.generate_situations(
 		season, week_in_season, match_type
 	)
-	var player_mt:        Array[String] = TraitMatchup.get_player_match_traits(active)
-	var sm_score:         float         = TraitMatchup.calc_stamina_morale_score(active)
-	var matchup_modifier: float         = TraitMatchup.calc_modifier(
-		player_mt, opponent_traits, situations, sm_score
+	var player_mt:        Array[String] = TraitMatchup.get_team_traits(active)
+	var matchup_modifier: int           = TraitMatchup.calculate_matchup_modifier(
+		player_mt, opponent_traits, situations
 	)
 
 	# Store matchup breakdown in week_result for ResolutionScreen
-	week_result.opponent_traits  = opponent_traits
-	week_result.situations       = situations
+	week_result.opponent_traits     = opponent_traits
+	week_result.situations          = situations
 	week_result.player_match_traits = player_mt
-	week_result.matchup_modifier = matchup_modifier
+	week_result.matchup_modifier    = float(matchup_modifier)
 
 	# --- Run match ---
 	# Modifier adjusts the opponent score: positive modifier = player advantage
@@ -253,7 +252,7 @@ func _resolve_bench(player: Player) -> Dictionary:
 			"narrative":    player.player_name + " trained on the bench. The grind never stops.",
 		}
 	else:
-		var gain: int = 23 if player.primary_trait == "lazy" else 15
+		var gain: int = 23 if player.primary_trait == "aggressive" else 15
 		player.stamina           = _apply_with_dr(player.stamina, gain, 80, 0.5)
 		player.morale            = _apply_with_dr(player.morale,  5,   80, 0.5)
 		player.burnout           = max(player.burnout - 2, 0)
@@ -286,10 +285,9 @@ func get_week_context() -> Dictionary:
 
 	# Matchup hint — preview how current squad counters the opponent
 	var active:           Array[Player] = active_players()
-	var player_mt:        Array[String] = TraitMatchup.get_player_match_traits(active)
-	var sm_score:         float         = TraitMatchup.calc_stamina_morale_score(active)
-	var matchup_modifier: float         = TraitMatchup.calc_modifier(
-		player_mt, opponent_traits, situations, sm_score
+	var player_mt:        Array[String] = TraitMatchup.get_team_traits(active)
+	var matchup_modifier: int           = TraitMatchup.calculate_matchup_modifier(
+		player_mt, opponent_traits, situations
 	)
 
 	var opp_score_raw: int = entry["opponent"]
@@ -303,7 +301,7 @@ func get_week_context() -> Dictionary:
 		"opponent_traits":     opponent_traits,
 		"situations":          situations,
 		"player_match_traits": player_mt,
-		"matchup_modifier":    matchup_modifier,
+		"matchup_modifier":    float(matchup_modifier),
 		"next_event":          next,
 		"squad_valid":         squad_is_valid(),
 		"game_over":           Calendar.is_game_over(week),
@@ -315,11 +313,11 @@ func get_week_context() -> Dictionary:
 # PRIVATE HELPERS
 # ---------------------------------------------------------------------------
 
-func _win_estimate(active: Array[Player], opp_score: int, matchup_modifier: float) -> String:
+func _win_estimate(active: Array[Player], opp_score: int, matchup_modifier: int) -> String:
 	var team_skill: int = 0
 	for p in active:
 		team_skill += p.skill
-	var adjusted_opp: float = float(opp_score) - matchup_modifier
+	var adjusted_opp: float = float(opp_score - matchup_modifier)
 	var ratio: float = float(team_skill * 3) / adjusted_opp  # ×3 since 3 players
 	if ratio >= 1.05:
 		return GameText.ESTIMATE_FAVORED
@@ -348,7 +346,7 @@ func _apply_match_stamina_cost(active: Array[Player], is_important: bool) -> voi
 		p.burnout          = min(p.burnout + 1, 5)
 		p.consecutive_rests = 0
 		p.debut_match      = false
-		if p.primary_trait == "grinder":
+		if p.primary_trait == "resilient":
 			p.hunger = min(p.hunger + 1, 5)
 
 
@@ -364,8 +362,7 @@ func _apply_morale(active: Array[Player], won: bool, match_type: String) -> void
 				delta += 3
 		else:
 			delta = -8 if is_important else -5
-			if p.primary_trait == "choker" and is_important:
-				delta -= 4
+			# volatile players have no extra morale penalty — unpredictability cuts both ways
 		p.morale       = clamp(p.morale + delta, 0, 100)
 		p.morale_delta = delta
 		p.form_history.append(GameText.PERF_LABELS[1])  # updated properly in XP loop

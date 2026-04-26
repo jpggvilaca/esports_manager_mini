@@ -3,7 +3,7 @@
 class_name Player
 extends RefCounted
 
-# Traits: clutch | choker | grinder | lazy | consistent | volatile | none
+# UNIFIED TRAITS: aggressive | tactical | focused | clutch | resilient | volatile
 # Minor:  resilient | fragile | none
 
 var player_name:   String
