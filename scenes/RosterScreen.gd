@@ -60,11 +60,17 @@ func _build() -> void:
 
 		# PlayerCard handles display; we wrap it in a clickable overlay
 		var card: PlayerCard = PLAYER_CARD.instantiate()
-		card.setup(player, player.is_active, "normal", tex, _game)
 		card.bench_toggle_pressed.connect(func(name: String):
 			_game.toggle_bench_action(name)
 			_build()
 		)
+
+		# Add to tree FIRST so @onready vars resolve, THEN call setup()
+		if player.is_active:
+			active_list.add_child(card)
+		else:
+			bench_list.add_child(card)
+		card.setup(player, player.is_active, "normal", tex, _game)
 
 		# Invisible full-rect button on top for squad toggle click
 		var btn := Button.new()
@@ -77,11 +83,6 @@ func _build() -> void:
 		var captured_name: String = player.player_name
 		btn.pressed.connect(func(): _on_card_clicked(captured_name))
 		card.add_child(btn)
-
-		if player.is_active:
-			active_list.add_child(card)
-		else:
-			bench_list.add_child(card)
 
 
 func _on_card_clicked(player_name: String) -> void:

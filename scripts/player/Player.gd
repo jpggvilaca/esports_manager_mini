@@ -34,7 +34,6 @@ var xp_delta:  int  = 0
 # --- Match history ---
 var last_score:   int  = 0
 var win_streak:   int  = 0
-var debut_match:  bool = true
 
 var form_history: Array = []
 var form_label: String:
@@ -48,13 +47,9 @@ var form_label: String:
 
 # --- Hidden counters ---
 var burnout:           int = 0
-var hunger:            int = 3
-var consecutive_rests: int = 0
 
 # --- Delta tracking (for resolution screen) ---
 var morale_delta:  int = 0
-var stamina_delta: int = 0
-var skill_delta:   int = 0
 
 
 func _init(

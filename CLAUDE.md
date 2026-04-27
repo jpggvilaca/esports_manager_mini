@@ -1,8 +1,8 @@
 <!-- GODOTIQ RULES START -->
 <!-- godotiq-rules-version: 0.4.0 -->
 <!-- v0.4.0: Strengthened autonomy/verification, added click_at/click_at_world input docs,
-     UI construction guidelines, background agent supervision, efficient workflow section,
-     tile/grid guidance improvements -->
+	 UI construction guidelines, background agent supervision, efficient workflow section,
+	 tile/grid guidance improvements -->
 # GodotIQ — AI-Assisted Godot Development
 
 You have GodotIQ MCP tools. ALWAYS prefer these over raw file operations.
@@ -91,11 +91,11 @@ Use `nodes` mode to create container nodes, camera, and lights:
 
 ```
 godotiq_build_scene(nodes=[
-    {type: "Node3D", name: "Terrain"},
-    {type: "Node3D", name: "Decorations"},
-    {type: "Node3D", name: "Enemies"},
-    {type: "Camera3D", name: "MainCamera", position: [0, 10, 10], rotation: [-45, 0, 0]},
-    {type: "DirectionalLight3D", name: "Sun", rotation: [-60, 30, 0]}
+	{type: "Node3D", name: "Terrain"},
+	{type: "Node3D", name: "Decorations"},
+	{type: "Node3D", name: "Enemies"},
+	{type: "Camera3D", name: "MainCamera", position: [0, 10, 10], rotation: [-45, 0, 0]},
+	{type: "DirectionalLight3D", name: "Sun", rotation: [-60, 30, 0]}
 ])
 godotiq_save_scene()
 → Self-verify with explore/spatial_audit
@@ -107,14 +107,14 @@ Use `grid` mode for tile-based ground. Use `overrides` for special tiles:
 
 ```
 godotiq_build_scene(parent="Terrain", grid={
-    scene: "res://tiles/grass.tscn",
-    prefix: "Tile",
-    rows: 8, cols: 8,
-    spacing: 2.0,
-    overrides: {
-        "3,0": {scene: "res://tiles/road.tscn"},
-        "3,1": {scene: "res://tiles/road.tscn"}
-    }
+	scene: "res://tiles/grass.tscn",
+	prefix: "Tile",
+	rows: 8, cols: 8,
+	spacing: 2.0,
+	overrides: {
+		"3,0": {scene: "res://tiles/road.tscn"},
+		"3,1": {scene: "res://tiles/road.tscn"}
+	}
 })
 godotiq_save_scene()
 → Self-verify with explore/spatial_audit
@@ -133,8 +133,8 @@ Use `scatter` mode for handpicked placements:
 
 ```
 godotiq_build_scene(parent="Decorations", scatter={items: [
-    {scene: "res://props/tree.tscn", name: "Tree1", position: [5, 0, 3]},
-    {scene: "res://props/rock.tscn", name: "Rock1", position: [8, 0, 1]}
+	{scene: "res://props/tree.tscn", name: "Tree1", position: [5, 0, 3]},
+	{scene: "res://props/rock.tscn", name: "Rock1", position: [8, 0, 1]}
 ]})
 godotiq_save_scene()
 → Self-verify with explore/spatial_audit

@@ -261,7 +261,7 @@ func _player_act_event(entry: Dictionary, act_idx: int, player_counters: bool = 
 				notes.append("in form")
 			elif player.form_label == "📉 Struggling":
 				notes.append("on a rough run")
-			if player.burnout >= 3:
+			if player.burnout >= Tuning.BURNOUT_WARNING_THRESHOLD:
 				notes.append("burnout showing")
 			var note_str: String = "  (%s)" % ", ".join(notes) if notes.size() > 0 else ""
 			line = player.player_name + note_str

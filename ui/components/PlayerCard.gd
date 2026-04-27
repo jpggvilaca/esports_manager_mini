@@ -94,14 +94,14 @@ func _add_active_extras(player: Player, match_type: String) -> void:
 		_add_label(voice, COLOR_VOICE, FONT_VOICE, true)
 	if player.form_label != "":
 		_add_label(player.form_label, Color(1, 1, 1), FONT_FORM)
-	if player.burnout >= 3:
+	if player.burnout >= Tuning.BURNOUT_WARNING_THRESHOLD:
 		_add_label("🔥 Burnout warning", COLOR_WARN, FONT_WARN)
 
 
 func _add_bench_extras(player: Player) -> void:
 	if player.form_label != "":
 		_add_label(player.form_label, Color(1, 1, 1), FONT_FORM)
-	if player.burnout >= 3:
+	if player.burnout >= Tuning.BURNOUT_WARNING_THRESHOLD:
 		_add_label("🔥 Burnout warning", COLOR_WARN, FONT_WARN)
 	_add_label("📚 Training" if player.bench_action == "train" else "💤 Resting",
 		COLOR_ACTION, FONT_ACTION)

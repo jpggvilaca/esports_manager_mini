@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://do8xjpqmn2qfs" path="res://scenes/GameWorld.gd" id="1_gw"]
 [ext_resource type="Theme" uid="uid://dqky3vxkyky18" path="res://ui/theme.tres" id="2_theme"]
 [ext_resource type="Texture2D" uid="uid://n577xan6xon0" path="res://assets/room/background.webp" id="3_bg"]
+[ext_resource type="PackedScene" path="res://ui/components/LeagueOverlay.tscn" id="4_league"]
 
 [node name="GameWorld" type="Node2D" unique_id=1485165983]
 script = ExtResource("1_gw")
@@ -114,6 +115,13 @@ theme_override_font_sizes/font_size = 11
 horizontal_alignment = 1
 autowrap_mode = 3
 
+[node name="LeagueRankLabel" type="Label" parent="UI/Root/Margin/VBox/TopRow/RightPanel" unique_id=1111000020]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.82, 0.35, 1)
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+text = "🏆  Rank — / 8"
+
 [node name="SquadHeader" type="Label" parent="UI/Root/Margin/VBox" unique_id=245499006]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.8, 1, 1)
@@ -146,6 +154,13 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 15
 text = "📋  Roster & Squad"
 
+[node name="LeagueBtn" type="Button" parent="UI/Root/Margin/VBox/ButtonRow" unique_id=1111000021]
+custom_minimum_size = Vector2(160, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.82, 0.35, 1)
+theme_override_font_sizes/font_size = 15
+text = "🏆  Standings"
+
 [node name="MarketBtn" type="Button" parent="UI/Root/Margin/VBox/ButtonRow" unique_id=576990225]
 visible = false
 custom_minimum_size = Vector2(160, 44)
@@ -169,6 +184,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_top = -72.0
+grow_horizontal = 2
 grow_vertical = 0
 
 [node name="BannerBg" type="ColorRect" parent="UI/Root/GoalBanner" unique_id=1111000011]
@@ -199,3 +215,11 @@ custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Dismiss"
+
+[node name="LeagueOverlay" type="Control" parent="UI/Root" instance=ExtResource("4_league") unique_id=1111000022]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

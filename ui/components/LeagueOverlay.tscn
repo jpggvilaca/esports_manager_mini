@@ -1,0 +1,104 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/components/LeagueOverlay.gd" id="1_lo"]
+
+[node name="LeagueOverlay" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lo")
+
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.05, 0.08, 0.96)
+
+[node name="OuterMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 60
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 60
+theme_override_constants/margin_bottom = 40
+
+[node name="VBox" type="VBoxContainer" parent="OuterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="TitleRow" type="HBoxContainer" parent="OuterMargin/VBox"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="OuterMargin/VBox/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 26
+theme_override_colors/font_color = Color(0.90, 0.90, 0.95, 1.0)
+text = "🏆  League Standings"
+
+[node name="SeasonLabel" type="Label" parent="OuterMargin/VBox/TitleRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.55, 0.58, 0.65, 1.0)
+text = "Season 1"
+
+[node name="SubtitleLabel" type="Label" parent="OuterMargin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.55, 0.58, 0.65, 1.0)
+text = "Top 3 finish: +15 morale, +100 XP all players.  Bottom 2: −10 morale next season."
+
+[node name="HeaderRow" type="HBoxContainer" parent="OuterMargin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="HeaderRank" type="Label" parent="OuterMargin/VBox/HeaderRow"]
+custom_minimum_size = Vector2(36, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.40, 0.42, 0.50, 1.0)
+text = "#"
+
+[node name="HeaderName" type="Label" parent="OuterMargin/VBox/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.40, 0.42, 0.50, 1.0)
+text = "TEAM"
+
+[node name="HeaderRecord" type="Label" parent="OuterMargin/VBox/HeaderRow"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.40, 0.42, 0.50, 1.0)
+horizontal_alignment = 2
+text = "W–L"
+
+[node name="HeaderPts" type="Label" parent="OuterMargin/VBox/HeaderRow"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.40, 0.42, 0.50, 1.0)
+horizontal_alignment = 2
+text = "PTS"
+
+[node name="StandingsList" type="VBoxContainer" parent="OuterMargin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="CloseBtn" type="Button" parent="OuterMargin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Close"

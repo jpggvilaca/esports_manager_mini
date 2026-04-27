@@ -219,24 +219,3 @@ static func get_team_traits(players: Array) -> Array[String]:
 	for p in players:
 		result.append(p.primary_trait)
 	return result
-
-
-# ---------------------------------------------------------------------------
-# COUNTER SUMMARY (UI helper)
-# Returns a short string summarising the matchup for one player vs opponent traits.
-# ---------------------------------------------------------------------------
-static func counter_summary(player_trait: String, opponent_traits: Array) -> String:
-	var wins: Array = []
-	var loses: Array = []
-	for o in opponent_traits:
-		if WINS_AGAINST.has(player_trait) and o in WINS_AGAINST[player_trait]:
-			wins.append(o)
-		elif LOSES_AGAINST.has(player_trait) and o in LOSES_AGAINST[player_trait]:
-			loses.append(o)
-	if wins.size() > 0 and loses.size() == 0:
-		return "counters"
-	if loses.size() > 0 and wins.size() == 0:
-		return "countered"
-	if wins.size() > 0 and loses.size() > 0:
-		return "mixed"
-	return "neutral"

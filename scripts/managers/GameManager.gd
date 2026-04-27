@@ -18,10 +18,10 @@ const SQUAD_SIZE: int = 3   # max active players per week
 
 var players: Array[Player]  = []
 var week:    int             = 1
-var team_win_streak: int     = 0
 
 var goal_manager: SeasonGoalManager = null
 var market:       PlayerMarket      = null
+var league:       LeagueManager     = null
 
 # Banner shown on hub after the resolution screen closes.
 # Set by advance_week() when a goal is achieved. Cleared when read by UI.
@@ -51,6 +51,7 @@ func _init() -> void:
 	byte_.bench_action = "train"  # Endurance player default
 	goal_manager = SeasonGoalManager.new()
 	market       = PlayerMarket.new()
+	league       = LeagueManager.new(1, "Your Team")
 
 
 # ---------------------------------------------------------------------------
@@ -108,6 +109,25 @@ func toggle_bench_action(player_name: String) -> void:
 
 
 # ---------------------------------------------------------------------------
+# LEAGUE BRIDGE METHODS
+# Thin wrappers so UI only talks to GameManager, never LeagueManager directly.
+# ---------------------------------------------------------------------------
+
+# Returns sorted standings for the hub panel.
+# Each entry: { name, points, wins, losses, is_player, rank, tier }
+func get_standings() -> Array[Dictionary]:
+	return league.get_standings() if league != null else []
+
+# Returns the player's current rank (1-indexed).
+func league_rank() -> int:
+	return league.player_rank() if league != null else 0
+
+# Returns W–L string like "7–6".
+func league_record() -> String:
+	return league.player_record() if league != null else "0–0"
+
+
+# ---------------------------------------------------------------------------
 # MARKET BRIDGE METHODS
 # Thin wrappers so UI only talks to GameManager, never PlayerMarket directly.
 # ---------------------------------------------------------------------------
@@ -151,6 +171,9 @@ func advance_week() -> WeekResult:
 	var active:  Array[Player] = active_players()
 	var benched: Array[Player] = benched_players()
 
+	# --- League: simulate NPCs before player match ---
+	league.simulate_npc_week(week_in_season)
+
 	# --- Apply bench outcomes (passive rest/train) ---
 	for p in benched:
 		var bench_outcome: Dictionary = _resolve_bench(p)
@@ -190,6 +213,12 @@ func advance_week() -> WeekResult:
 	week_result.opponent_score = effective_opp_score  # show effective (what was actually beaten)
 	week_result.player_results = match_sim["players"]
 
+	# --- League: record player result ---
+	league.record_result(week_result.won)
+	week_result.league_rank = league.player_rank()
+	if week_in_season == Calendar.WEEKS_PER_SEASON:
+		league.apply_season_result(players)
+
 	# --- Post-match stat updates ---
 	_update_streaks(week_result.won)
 	_apply_match_stamina_cost(active, is_important)
@@ -211,11 +240,17 @@ func advance_week() -> WeekResult:
 
 	# --- Goals ---
 	var wis: int = week_in_season
-	goal_manager.on_match_result(week_result.to_match_result(), active, wis)
+	goal_manager.on_match_result(week_result.won, match_type == Calendar.TYPE_TOURNAMENT, active, wis)
 	goal_manager.check_quarter_boundary(wis)
 	if goal_manager.quarter_bonus_pending:
 		week_result.quarter_bonus = goal_manager.quarter_bonus_description
 		goal_manager.consume_quarter_bonus(active)
+
+	# --- New season reset — must run BEFORE week += 1, while week_in_season still equals WEEKS_PER_SEASON ---
+	if week_in_season == Calendar.WEEKS_PER_SEASON:
+		goal_manager = SeasonGoalManager.new()
+		market.reset_for_new_season()
+		league.reset_for_season(season + 1, "Your Team")
 
 	week += 1
 	goal_manager.start_new_quarter(week_in_season)
@@ -239,9 +274,8 @@ func _resolve_bench(player: Player) -> Dictionary:
 	var prev_stamina: int = player.stamina
 
 	if player.bench_action == "train":
-		player.stamina = max(player.stamina - 5, 0)
+		player.stamina = max(player.stamina - Tuning.BENCH_TRAIN_STAMINA_COST, 0)
 		player.burnout = min(player.burnout + 1, 5)
-		player.hunger  = min(player.hunger + 1, 5)
 		var lu: Array = LevelSystem.award_action_xp(player, "train")
 		return {
 			"player":       player,
@@ -252,13 +286,10 @@ func _resolve_bench(player: Player) -> Dictionary:
 			"narrative":    player.player_name + " trained on the bench. The grind never stops.",
 		}
 	else:
-		var gain: int = 23 if player.primary_trait == "aggressive" else 15
+		var gain: int = Tuning.BENCH_REST_STAMINA_AGGRESSIVE if player.primary_trait == "aggressive" else Tuning.BENCH_REST_STAMINA
 		player.stamina           = _apply_with_dr(player.stamina, gain, 80, 0.5)
-		player.morale            = _apply_with_dr(player.morale,  5,   80, 0.5)
+		player.morale            = _apply_with_dr(player.morale,  Tuning.BENCH_REST_MORALE, 80, 0.5)
 		player.burnout           = max(player.burnout - 2, 0)
-		player.consecutive_rests += 1
-		if player.consecutive_rests >= 3:
-			player.hunger = max(player.hunger - 1, 0)
 		return {
 			"player":       player,
 			"action":       "rest",
@@ -328,10 +359,6 @@ func _win_estimate(active: Array[Player], opp_score: int, matchup_modifier: int)
 
 
 func _update_streaks(won: bool) -> void:
-	if won:
-		team_win_streak += 1
-	else:
-		team_win_streak = 0
 	for p in active_players():
 		if won:
 			p.win_streak += 1
@@ -340,14 +367,10 @@ func _update_streaks(won: bool) -> void:
 
 
 func _apply_match_stamina_cost(active: Array[Player], is_important: bool) -> void:
-	var cost: int = 18 if is_important else 13
+	var cost: int = Tuning.STAMINA_COST_IMPORTANT if is_important else Tuning.STAMINA_COST_NORMAL
 	for p in active:
 		p.stamina          = max(p.stamina - cost, 0)
 		p.burnout          = min(p.burnout + 1, 5)
-		p.consecutive_rests = 0
-		p.debut_match      = false
-		if p.primary_trait == "resilient":
-			p.hunger = min(p.hunger + 1, 5)
 
 
 func _apply_morale(active: Array[Player], won: bool, match_type: String) -> void:
@@ -357,11 +380,11 @@ func _apply_morale(active: Array[Player], won: bool, match_type: String) -> void
 	for p in active:
 		var delta: int = 0
 		if won:
-			delta = 8 if is_important else 5
+			delta = Tuning.MORALE_WIN_IMPORTANT if is_important else Tuning.MORALE_WIN_NORMAL
 			if p.primary_trait == "clutch" and is_important:
-				delta += 3
+				delta += Tuning.MORALE_CLUTCH_BONUS
 		else:
-			delta = -8 if is_important else -5
+			delta = Tuning.MORALE_LOSS_IMPORTANT if is_important else Tuning.MORALE_LOSS_NORMAL
 			# volatile players have no extra morale penalty — unpredictability cuts both ways
 		p.morale       = clamp(p.morale + delta, 0, 100)
 		p.morale_delta = delta

@@ -7,6 +7,7 @@ const TraitMatchup     := preload("res://scripts/systems/TraitMatchup.gd")
 const ROSTER_SCENE     := preload("res://scenes/RosterScreen.tscn")
 const RESOLUTION_SCENE := preload("res://scenes/ResolutionScreen.tscn")
 const MARKET_SCENE     := preload("res://ui/components/MarketOverlay.tscn")
+const LEAGUE_SCENE     := preload("res://ui/components/LeagueOverlay.tscn")
 const PLAYER_CARD      := preload("res://ui/components/PlayerCard.tscn")
 
 const PORTRAIT_PATHS: Array[String] = [
@@ -41,10 +42,13 @@ const OPP_ROW_SEP:     int   = 10
 @onready var _goal_lbl:     Label         = $UI/Root/Margin/VBox/TopRow/RightPanel/GoalLabel
 @onready var _squad_row:    HBoxContainer = $UI/Root/Margin/VBox/SquadRow
 @onready var _bench_row:    HBoxContainer = $UI/Root/Margin/VBox/BenchRow
-@onready var _end_week_btn: Button        = $UI/Root/Margin/VBox/ButtonRow/EndWeekBtn
-@onready var _market_btn:   Button        = $UI/Root/Margin/VBox/ButtonRow/MarketBtn
-@onready var _roster_btn:   Button        = $UI/Root/Margin/VBox/ButtonRow/RosterBtn
-@onready var _goal_banner:  PanelContainer = $UI/Root/GoalBanner
+@onready var _end_week_btn:    Button         = $UI/Root/Margin/VBox/ButtonRow/EndWeekBtn
+@onready var _market_btn:      Button         = $UI/Root/Margin/VBox/ButtonRow/MarketBtn
+@onready var _roster_btn:      Button         = $UI/Root/Margin/VBox/ButtonRow/RosterBtn
+@onready var _league_btn:      Button         = $UI/Root/Margin/VBox/ButtonRow/LeagueBtn
+@onready var _league_rank_lbl: Label          = $UI/Root/Margin/VBox/TopRow/RightPanel/LeagueRankLabel
+@onready var _league_overlay:  Control        = $UI/Root/LeagueOverlay
+@onready var _goal_banner:     PanelContainer = $UI/Root/GoalBanner
 @onready var _banner_label: Label          = $UI/Root/GoalBanner/BannerMargin/BannerRow/BannerLabel
 @onready var _banner_dismiss: Button       = $UI/Root/GoalBanner/BannerMargin/BannerRow/BannerDismiss
 
@@ -57,6 +61,8 @@ func _ready() -> void:
 	_end_week_btn.pressed.connect(_on_end_week_pressed)
 	_market_btn.pressed.connect(_on_market_btn_pressed)
 	_banner_dismiss.pressed.connect(_on_banner_dismissed)
+	_league_btn.pressed.connect(_on_league_btn_pressed)
+	_league_overlay.closed.connect(_on_league_closed)
 	_refresh_ui()
 
 
@@ -84,6 +90,12 @@ func _refresh_ui() -> void:
 
 	_market_btn.visible = _game.market != null \
 		and _game.market.is_available(ctx["week"], ctx.get("next_event", {}))
+
+	# League rank mini-label in right panel
+	var rank: int    = _game.league_rank()
+	var rec:  String = _game.league_record()
+	_league_rank_lbl.text = "🏆  Rank %d / 8  ·  %s" % [rank, rec] if rank > 0 \
+		else "🏆  Standings"
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +223,14 @@ func _show_banner_if_pending() -> void:
 
 func _on_banner_dismissed() -> void:
 	_goal_banner.hide()
+
+
+func _on_league_btn_pressed() -> void:
+	_league_overlay.open(_game)
+
+
+func _on_league_closed() -> void:
+	_refresh_ui()
 
 
 func _on_market_btn_pressed() -> void:

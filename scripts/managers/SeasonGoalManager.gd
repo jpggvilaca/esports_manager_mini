@@ -21,25 +21,22 @@ func _init() -> void:
 
 
 # Called by GameManager after every match to advance week tracking.
-func on_match_result(result: MatchResult, players: Array[Player], week_in_season: int) -> void:
-	if result.won:
+func on_match_result(won: bool, is_tournament: bool, players: Array[Player], week_in_season: int) -> void:
+	if won:
 		total_wins += 1
-	_check_season(result, players)
-	_check_quarter(result, players, week_in_season)
+	_check_season(won, is_tournament, players)
+	_check_quarter(won, players, week_in_season)
 
 
 # Called by GameManager to apply pending bonus to players.
-# Returns true if a bonus was applied so caller can surface it.
-func consume_quarter_bonus(players: Array[Player]) -> bool:
+func consume_quarter_bonus(players: Array[Player]) -> void:
 	if not quarter_bonus_pending:
-		return false
+		return
 	quarter_bonus_pending = false
 	for p: Player in players:
-		p.morale = min(p.morale + 10, 100)
-		# Award a flat XP surge
-		p.xp       += 50
-		p.xp_delta += 50
-	return true
+		p.morale = min(p.morale + Tuning.QUARTER_BONUS_MORALE, 100)
+		p.xp       += Tuning.QUARTER_BONUS_XP
+		p.xp_delta += Tuning.QUARTER_BONUS_XP
 
 
 func start_new_quarter(week_in_season: int) -> void:
@@ -100,15 +97,15 @@ func _pick_season() -> Dictionary:
 
 func _pick_quarter() -> Dictionary:
 	var goals: Array = [
-		{ "type": "quarter_wins",    "target": 3, "current": 0, "achieved": false, "wins_this_quarter": 0 },
-		{ "type": "quarter_wins",    "target": 4, "current": 0, "achieved": false, "wins_this_quarter": 0 },
+		{ "type": "quarter_wins",    "target": 3, "current": 0, "achieved": false },
+		{ "type": "quarter_wins",    "target": 4, "current": 0, "achieved": false },
 		{ "type": "quarter_no_loss", "target": 1, "current": 0, "achieved": false, "clean": true },
 		{ "type": "quarter_form",    "target": 1, "current": 0, "achieved": false },
 	]
 	return goals[randi() % goals.size()]
 
 
-func _check_season(result: MatchResult, players: Array[Player]) -> void:
+func _check_season(won: bool, is_tournament: bool, players: Array[Player]) -> void:
 	if season_goal.get("achieved", false):
 		return
 	match season_goal["type"]:
@@ -117,7 +114,7 @@ func _check_season(result: MatchResult, players: Array[Player]) -> void:
 			if total_wins >= season_goal["target"]:
 				season_goal["achieved"] = true
 		"tournament_win":
-			if result.is_tournament and result.won:
+			if is_tournament and won:
 				season_goal["current"]  = 1
 				season_goal["achieved"] = true
 		"top_form":
@@ -130,19 +127,18 @@ func _check_season(result: MatchResult, players: Array[Player]) -> void:
 				season_goal["achieved"] = true
 
 
-func _check_quarter(result: MatchResult, players: Array[Player], _week_in_season: int) -> void:
+func _check_quarter(won: bool, players: Array[Player], _week_in_season: int) -> void:
 	if quarter_goal.get("achieved", false):
 		return
 	match quarter_goal["type"]:
 		"quarter_wins":
-			if result.won:
-				quarter_goal["wins_this_quarter"] = quarter_goal.get("wins_this_quarter", 0) + 1
-			quarter_goal["current"] = quarter_goal["wins_this_quarter"]
-			if quarter_goal["wins_this_quarter"] >= quarter_goal["target"]:
+			if won:
+				quarter_goal["current"] += 1
+			if quarter_goal["current"] >= quarter_goal["target"]:
 				quarter_goal["achieved"] = true
-				_trigger_quarter_bonus("Crushed the quarter — team morale +10, all players +50 XP")
+				_trigger_quarter_bonus("Crushed the quarter — team morale +%d, all players +%d XP" % [Tuning.QUARTER_BONUS_MORALE, Tuning.QUARTER_BONUS_XP])
 		"quarter_no_loss":
-			if not result.won:
+			if not won:
 				quarter_goal["clean"] = false
 				quarter_goal["achieved"] = false
 			# Quarter is only confirmed complete at the boundary — checked in start_new_quarter
@@ -151,7 +147,7 @@ func _check_quarter(result: MatchResult, players: Array[Player], _week_in_season
 				if p.form_label == "🔥 In Form":
 					quarter_goal["current"]  = 1
 					quarter_goal["achieved"] = true
-					_trigger_quarter_bonus("Player hit top form — team morale +10, all players +50 XP")
+					_trigger_quarter_bonus("Player hit top form — team morale +%d, all players +%d XP" % [Tuning.QUARTER_BONUS_MORALE, Tuning.QUARTER_BONUS_XP])
 					break
 
 
@@ -162,7 +158,7 @@ func check_quarter_boundary(week_in_season: int) -> void:
 	if quarter_goal.get("type") == "quarter_no_loss" and quarter_goal.get("clean", false):
 		if not quarter_goal.get("achieved", false):
 			quarter_goal["achieved"] = true
-			_trigger_quarter_bonus("Flawless quarter — team morale +10, all players +50 XP")
+			_trigger_quarter_bonus("Flawless quarter — team morale +%d, all players +%d XP" % [Tuning.QUARTER_BONUS_MORALE, Tuning.QUARTER_BONUS_XP])
 
 
 func _trigger_quarter_bonus(description: String) -> void:
