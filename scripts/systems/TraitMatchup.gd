@@ -135,10 +135,13 @@ static func generate_opponent_traits(season: int, week_in_season: int, difficult
 
 	var result: Array[String] = []
 	var pool_copy: Array = pool.duplicate()
+	
 	for i in 3:
 		if pool_copy.is_empty():
 			pool_copy = pool.duplicate()
+			
 		var idx: int = randi() % pool_copy.size()
+		
 		result.append(pool_copy[idx])
 		pool_copy.remove_at(idx)
 
@@ -162,6 +165,7 @@ static func generate_situations(season: int, week_in_season: int, match_type: St
 	var pool: Array = ALL_SITUATIONS.duplicate()
 	pool.shuffle()
 	var result: Array[String] = []
+	
 	for i in count:
 		result.append(pool[i])
 	return result
@@ -171,6 +175,13 @@ static func generate_situations(season: int, week_in_season: int, match_type: St
 # MATCHUP SCORE
 # Returns an int modifier representing how well the player team
 # counters the opponent traits given the match situations.
+#
+# NOTE: This is now a PREVIEW NUMBER for the hub UI. The authoritative
+# match math lives in Simulation.simulate_team, which applies
+# multiplicative counter pressure to the team score (per
+# Tuning.COUNTER_PENALTY_MAX / COUNTER_BONUS_MAX). This function returns
+# an integer in roughly the same -15..+15 range so existing UI keeps
+# working, but it is NO LONGER fed into the score formula.
 #
 # Weights:
 #   Opponent matchup  → 60%  (counter their traits)
@@ -199,6 +210,7 @@ static func calculate_matchup_modifier(
 	# --- Situation coverage (30% weight) ---
 	for situation in situations:
 		var favored: String = SITUATION_FAVORS.get(situation, "")
+		
 		if favored == "":
 			continue
 		if favored in player_traits:
@@ -216,6 +228,8 @@ static func calculate_matchup_modifier(
 # ---------------------------------------------------------------------------
 static func get_team_traits(players: Array) -> Array[String]:
 	var result: Array[String] = []
+	
 	for p in players:
 		result.append(p.primary_trait)
+		
 	return result

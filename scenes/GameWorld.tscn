@@ -119,8 +119,8 @@ autowrap_mode = 3
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.82, 0.35, 1)
 theme_override_font_sizes/font_size = 12
-horizontal_alignment = 1
 text = "🏆  Rank — / 8"
+horizontal_alignment = 1
 
 [node name="SquadHeader" type="Label" parent="UI/Root/Margin/VBox" unique_id=245499006]
 layout_mode = 2
@@ -216,10 +216,5 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Dismiss"
 
-[node name="LeagueOverlay" type="Control" parent="UI/Root" instance=ExtResource("4_league") unique_id=1111000022]
+[node name="LeagueOverlay" parent="UI/Root" unique_id=1111000022 instance=ExtResource("4_league")]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2

@@ -24,7 +24,14 @@ var is_benched: bool:         # computed from is_active
 # bench_action: what this player does while benched.
 # "rest"  = recover stamina + morale (default for most)
 # "train" = gain XP at cost of stamina (grinders default, but any player can choose)
+# "study" = study the meta — accrue a knowledge buff consumed on next match played
 var bench_action: String = "rest"
+
+# Study charges accumulated by benching with bench_action == "study".
+# Consumed on the next match the player plays — applies a multiplicative
+# bonus to that player's counter contribution and a small flat skill bump.
+# Capped by Tuning.BENCH_STUDY_MAX_CHARGES.
+var study_charges: int = 0
 
 # --- Progression ---
 var xp:        int  = 0

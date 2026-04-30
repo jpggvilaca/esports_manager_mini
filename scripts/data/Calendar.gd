@@ -92,8 +92,8 @@ static func get_week(absolute_week: int) -> Dictionary:
 	var week_in_season: int = get_week_in_season(absolute_week)
 	var template_idx:   int = clamp(week_in_season - 1, 0, WEEK_TEMPLATE.size() - 1)
 	var template:       Dictionary = WEEK_TEMPLATE[template_idx].duplicate()
-
 	var scale: float = 1.0 + SEASON_DIFFICULTY_STEP * (season - 1)
+	
 	template["opponent"]       = int(template["opponent"] * scale)
 	template["season"]         = season
 	template["week_in_season"] = week_in_season
@@ -104,10 +104,12 @@ static func get_week(absolute_week: int) -> Dictionary:
 static func get_opponent_name(season: int, week_in_season: int, difficulty_label: String) -> String:
 	var name_seed: int = season * 500 + week_in_season * 17 + 3
 	seed(name_seed)
+	
 	var pos_range: Array = LABEL_TO_POSITION.get(difficulty_label, [11, 15])
 	var pos_min: int = pos_range[0] - 1
 	var pos_max: int = pos_range[1] - 1
 	var name_idx: int = pos_min + (randi() % (pos_max - pos_min + 1))
+	
 	return OPPONENT_NAMES[clamp(name_idx, 0, OPPONENT_NAMES.size() - 1)]
 
 
@@ -122,6 +124,7 @@ static func get_week_in_season(absolute_week: int) -> int:
 static func is_game_over(absolute_week: int) -> bool:
 	if MAX_SEASONS == -1:
 		return false
+		
 	return get_season(absolute_week) > MAX_SEASONS
 
 
@@ -130,6 +133,7 @@ static func get_next_event(absolute_week: int) -> Dictionary:
 
 	for i in range(current_idx + 1, WEEK_TEMPLATE.size()):
 		var entry: Dictionary = WEEK_TEMPLATE[i]
+		
 		if entry["type"] != TYPE_NORMAL:
 			return {
 				"type":       entry["type"],

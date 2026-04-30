@@ -24,6 +24,7 @@ func _init() -> void:
 func on_match_result(won: bool, is_tournament: bool, players: Array[Player], week_in_season: int) -> void:
 	if won:
 		total_wins += 1
+		
 	_check_season(won, is_tournament, players)
 	_check_quarter(won, players, week_in_season)
 
@@ -32,7 +33,9 @@ func on_match_result(won: bool, is_tournament: bool, players: Array[Player], wee
 func consume_quarter_bonus(players: Array[Player]) -> void:
 	if not quarter_bonus_pending:
 		return
+		
 	quarter_bonus_pending = false
+	
 	for p: Player in players:
 		p.morale = min(p.morale + Tuning.QUARTER_BONUS_MORALE, 100)
 		p.xp       += Tuning.QUARTER_BONUS_XP
@@ -56,6 +59,7 @@ func get_display() -> Dictionary:
 			desc = "🎯 Season: Get %d players on a hot streak" % season_goal["target"]
 		_:
 			desc = ""
+			
 	return {
 		"description": desc,
 		"current":     season_goal.get("current",  0),
@@ -92,6 +96,7 @@ func _pick_season() -> Dictionary:
 		{ "type": "tournament_win", "target": 1,  "current": 0, "achieved": false },
 		{ "type": "top_form",       "target": 2,  "current": 0, "achieved": false },
 	]
+	
 	return goals[randi() % goals.size()]
 
 
@@ -102,12 +107,14 @@ func _pick_quarter() -> Dictionary:
 		{ "type": "quarter_no_loss", "target": 1, "current": 0, "achieved": false, "clean": true },
 		{ "type": "quarter_form",    "target": 1, "current": 0, "achieved": false },
 	]
+	
 	return goals[randi() % goals.size()]
 
 
 func _check_season(won: bool, is_tournament: bool, players: Array[Player]) -> void:
 	if season_goal.get("achieved", false):
 		return
+		
 	match season_goal["type"]:
 		"wins":
 			season_goal["current"] = total_wins
@@ -119,10 +126,13 @@ func _check_season(won: bool, is_tournament: bool, players: Array[Player]) -> vo
 				season_goal["achieved"] = true
 		"top_form":
 			var in_form: int = 0
+			
 			for p: Player in players:
 				if p.form_label == "🔥 In Form":
 					in_form += 1
+					
 			season_goal["current"] = in_form
+			
 			if in_form >= season_goal["target"]:
 				season_goal["achieved"] = true
 
@@ -130,6 +140,7 @@ func _check_season(won: bool, is_tournament: bool, players: Array[Player]) -> vo
 func _check_quarter(won: bool, players: Array[Player], _week_in_season: int) -> void:
 	if quarter_goal.get("achieved", false):
 		return
+		
 	match quarter_goal["type"]:
 		"quarter_wins":
 			if won:
@@ -155,6 +166,7 @@ func _check_quarter(won: bool, players: Array[Player], _week_in_season: int) -> 
 func check_quarter_boundary(week_in_season: int) -> void:
 	if week_in_season not in QUARTER_WEEKS:
 		return
+		
 	if quarter_goal.get("type") == "quarter_no_loss" and quarter_goal.get("clean", false):
 		if not quarter_goal.get("achieved", false):
 			quarter_goal["achieved"] = true

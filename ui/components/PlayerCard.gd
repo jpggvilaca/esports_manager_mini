@@ -88,6 +88,19 @@ func setup(
 		_add_bench_extras(player)
 
 
+# Bench action label/icon — single source of truth for the 3-way cycle.
+const BENCH_ACTION_LABEL: Dictionary = {
+	"rest":  "💤 Resting",
+	"train": "📚 Training",
+	"study": "🔍 Studying meta",
+}
+const BENCH_NEXT_LABEL: Dictionary = {
+	"rest":  "Switch to 📚 Train",
+	"train": "Switch to 🔍 Study",
+	"study": "Switch to 💤 Rest",
+}
+
+
 func _add_active_extras(player: Player, match_type: String) -> void:
 	var voice: String = player.voice(match_type)
 	if voice != "":
@@ -96,6 +109,10 @@ func _add_active_extras(player: Player, match_type: String) -> void:
 		_add_label(player.form_label, Color(1, 1, 1), FONT_FORM)
 	if player.burnout >= Tuning.BURNOUT_WARNING_THRESHOLD:
 		_add_label("🔥 Burnout warning", COLOR_WARN, FONT_WARN)
+	# Carrying study charges into the match — highlight it.
+	if player.study_charges > 0:
+		var study_text: String = "📖 Studied (×%d) — boost ready" % player.study_charges
+		_add_label(study_text, Color(0.55, 0.85, 1.0), FONT_FORM)
 
 
 func _add_bench_extras(player: Player) -> void:
@@ -103,10 +120,12 @@ func _add_bench_extras(player: Player) -> void:
 		_add_label(player.form_label, Color(1, 1, 1), FONT_FORM)
 	if player.burnout >= Tuning.BURNOUT_WARNING_THRESHOLD:
 		_add_label("🔥 Burnout warning", COLOR_WARN, FONT_WARN)
-	_add_label("📚 Training" if player.bench_action == "train" else "💤 Resting",
-		COLOR_ACTION, FONT_ACTION)
+	var action_label: String = BENCH_ACTION_LABEL.get(player.bench_action, "💤 Resting")
+	if player.bench_action == "study" and player.study_charges > 0:
+		action_label += "  (×%d ready)" % player.study_charges
+	_add_label(action_label, COLOR_ACTION, FONT_ACTION)
 	var toggle_btn := Button.new()
-	toggle_btn.text = "Switch to 💤 Rest" if player.bench_action == "train" else "Switch to 📚 Train"
+	toggle_btn.text = BENCH_NEXT_LABEL.get(player.bench_action, "Switch to 📚 Train")
 	toggle_btn.add_theme_font_size_override("font_size", FONT_TOGGLE)
 	toggle_btn.custom_minimum_size = Vector2(0, BTN_MIN_H)
 	var captured_name: String = player.player_name

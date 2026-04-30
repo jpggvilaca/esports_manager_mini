@@ -174,14 +174,17 @@ const FLAVOR: Dictionary = {
 static func flavor(trait_key: String, situation_key: String) -> String:
 	if not FLAVOR.has(trait_key):
 		trait_key = "focused"
+		
 	var pool: Dictionary = FLAVOR[trait_key]
 	var base_key: String = situation_key.replace("_streak", "")
 	var lines: Array
+	
 	if pool.has(situation_key):        lines = pool[situation_key]
 	elif pool.has(base_key):           lines = pool[base_key]
 	elif pool.has("mid"):              lines = pool["mid"]
 	else:                              return ""
 	if lines.is_empty():               return ""
+	
 	return lines[randi() % lines.size()]
 
 
@@ -208,4 +211,5 @@ static func player_voice(player: Player, stamina_key: String, morale_key: String
 
 	if notes.is_empty():
 		return player.player_name + " is ready."
+		
 	return player.player_name + " — " + notes[randi() % notes.size()] + "."
