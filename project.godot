@@ -19,6 +19,8 @@ config/icon="res://icon.svg"
 
 GodotIQRuntime="*uid://cjw8r4s3ps8hv"
 SignalHub="*uid://dwpeve3u2a3an"
+Balance="*uid://pau70om6ctte"
+GameDirector="*uid://73trxyg4rf8y"
 
 [display]
 

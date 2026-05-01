@@ -1,22 +1,41 @@
-# scripts/managers/GameManager.gd
+# systems/game_director.gd
 # ============================================================
-# ORCHESTRATOR — owns the roster, week counter, and turn resolution.
+# GAME DIRECTOR — long-lived state ownership and turn orchestration.
+#
+# Registered as autoload `GameDirector` (see project.godot).
+# Replaces the legacy `GameManager` RefCounted class — same responsibilities,
+# but accessible as a global singleton instead of a per-screen instance.
 #
 # LOOP:
 #   1. Player sees opponent traits + match situations + active patch on hub
 #   2. Player picks 1–3 active players from the roster (set is_active)
 #   3. Player decides what each benched player does: rest / train / study
 #   4. Player presses "End Week"
-#   5. advance_week() resolves: bench actions → match → counter pressure →
-#      synergy → patch → Simulation → WeekResult
+#   5. advance_week() runs the WeekResolver pipeline and returns a WeekResult
 #   6. UI plays the resolution sequence
+#
+# ACCESS PATTERN:
+#   UI scripts read from `GameDirector` directly:
+#     var ctx: Dictionary = GameDirector.get_week_context()
+#     GameDirector.toggle_bench_action(player_name)
+#   No instance variable, no .new() — it's the singleton.
+#
+# REFACTOR NOTE (Phase B2):
+#   advance_week() is now a thin orchestrator that calls seven
+#   WeekResolver static phases and emits one SignalHub signal per
+#   phase. The 120-line god-method is gone; phase logic lives in
+#   `scripts/systems/WeekResolver.gd`.
+#
+#   pending_banner was removed in B3. Banner events now fire as
+#   SignalHub signals (goal_achieved, quarter_bonus_triggered,
+#   patch_rotated, season_ended) — GameWorld listens in _ready().
 # ============================================================
-class_name GameManager
-extends RefCounted
+extends Node
 
-const TraitMatchup := preload("res://scripts/systems/TraitMatchup.gd")
-const MetaPatch    := preload("res://scripts/systems/MetaPatch.gd")
-const SynergyClass := preload("res://scripts/systems/Synergy.gd")
+const TraitMatchup  := preload("res://scripts/systems/TraitMatchup.gd")
+const MetaPatch     := preload("res://scripts/systems/MetaPatch.gd")
+const SynergyClass  := preload("res://scripts/systems/Synergy.gd")
+const WeekResolverC := preload("res://scripts/systems/WeekResolver.gd")
 
 const SQUAD_SIZE: int = 3   # max active players per week
 
@@ -31,10 +50,9 @@ var market:       PlayerMarket      = null
 var league:       LeagueManager     = null
 var synergy:      Synergy           = null
 
-# Banner shown on hub after the resolution screen closes.
-# Set by advance_week() when a goal is achieved, a patch flips,
-# or some other notable event. Cleared when read by UI.
-var pending_banner: String = ""
+# B3: pending_banner removed. Banner events are now emitted as
+# SignalHub signals (goal_achieved, quarter_bonus_triggered,
+# patch_rotated, season_ended). GameWorld listens in _ready().
 
 var season: int:
 	get: return Calendar.get_season(week)
@@ -42,7 +60,17 @@ var week_in_season: int:
 	get: return Calendar.get_week_in_season(week)
 
 
-func _init() -> void:
+# ---------------------------------------------------------------------------
+# AUTOLOAD LIFECYCLE
+# ---------------------------------------------------------------------------
+
+func _ready() -> void:
+	start_new_game()
+
+
+# Resets all state to a fresh game. Called from _ready, and re-callable
+# (the smoke test uses this to run multiple seasons from a clean slate).
+func start_new_game() -> void:
 	var apex  := Player.new("Apex",  50, 50, 65, 55, "clutch",    "resilient")
 	var byte_ := Player.new("Byte",  43, 38, 60, 50, "resilient", "none")
 	var ghost := Player.new("Ghost", 38, 45, 62, 45, "volatile",  "fragile")
@@ -58,6 +86,9 @@ func _init() -> void:
 	for i in players.size():
 		players[i].is_active = i < SQUAD_SIZE
 	byte_.bench_action = "train"  # Endurance player default
+
+	week = 1
+
 	goal_manager = SeasonGoalManager.new()
 	market       = PlayerMarket.new()
 	league       = LeagueManager.new(1, "Your Team")
@@ -85,6 +116,8 @@ func benched_players() -> Array[Player]:
 
 
 # Set a player active. If squad is already full, deactivates the last active player.
+# NOTE: does NOT emit squad_changed — call sites that want the signal use toggle_active.
+# RosterScreen._on_card_clicked calls set_active directly and emits after.
 func set_active(player_name: String) -> void:
 	var target: Player = _find_player(player_name)
 	if target == null or target.is_active:
@@ -104,6 +137,7 @@ func toggle_active(player_name: String) -> void:
 		target.is_active = false
 	else:
 		set_active(player_name)
+	SignalHub.squad_changed.emit(active_players(), benched_players())
 
 
 func squad_is_valid() -> bool:
@@ -111,6 +145,7 @@ func squad_is_valid() -> bool:
 
 
 # Cycle a benched player's action: rest → train → study → rest …
+# B4: emits SignalHub.bench_action_changed after mutating.
 func toggle_bench_action(player_name: String) -> void:
 	var p: Player = _find_player(player_name)
 	if p == null or p.is_active:
@@ -120,11 +155,12 @@ func toggle_bench_action(player_name: String) -> void:
 		idx = 0
 	var next_idx: int = (idx + 1) % BENCH_ACTION_CYCLE.size()
 	p.bench_action = BENCH_ACTION_CYCLE[next_idx]
+	SignalHub.bench_action_changed.emit(p, p.bench_action)
 
 
 # ---------------------------------------------------------------------------
 # LEAGUE BRIDGE METHODS
-# Thin wrappers so UI only talks to GameManager, never LeagueManager directly.
+# Thin wrappers so UI only talks to GameDirector, never LeagueManager directly.
 # ---------------------------------------------------------------------------
 
 # Returns sorted standings for the hub panel.
@@ -143,7 +179,7 @@ func league_record() -> String:
 
 # ---------------------------------------------------------------------------
 # MARKET BRIDGE METHODS
-# Thin wrappers so UI only talks to GameManager, never PlayerMarket directly.
+# Thin wrappers so UI only talks to GameDirector, never PlayerMarket directly.
 # ---------------------------------------------------------------------------
 
 # Open/refresh market — generates fresh candidates if none exist yet.
@@ -176,216 +212,133 @@ func hire_candidate(candidate: Player, replace_index: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# ADVANCE WEEK — resolves everything, returns a WeekResult.
+# ADVANCE WEEK — thin orchestrator over the WeekResolver pipeline.
+#
+# Each phase is a single static call into WeekResolver, followed by a
+# SignalHub emission so listeners (UI animations, audio cues, debug
+# overlays, smoke-test invariant checks) can hook in without coupling to
+# the resolver itself.
+#
+# Pipeline phases (see WeekResolver.gd for full design notes):
+#   1. resolve_bench
+#   2. generate_match_context
+#   3. simulate_match
+#   4. apply_post_match_effects
+#   5. award_xp
+#   6. check_goals
+#   7. rotate_systems_if_season_end
+#
+# After phase 7 the orchestrator increments `week`, kicks the goal
+# manager into the next quarter, and emits reactive banner signals. The
+# week_advanced and match_resolved signals fire at the very end, after
+# all phases have completed and state is stable.
 # ---------------------------------------------------------------------------
 func advance_week() -> WeekResult:
-	var cal_entry:  Dictionary = Calendar.get_week(week)
-	var match_type: String     = cal_entry["type"]
 	var week_result := WeekResult.new()
 	week_result.week       = week_in_season
 	week_result.season     = season
-	week_result.match_type = match_type
 
 	var active:  Array[Player] = active_players()
 	var benched: Array[Player] = benched_players()
 
-	# --- Active patch (used for sim and surfaced in WeekResult) ---
-	var patch_data: Dictionary = MetaPatch.get_patch(week)
-	week_result.patch_buffed = patch_data["buffed"]
-	week_result.patch_nerfed = patch_data["nerfed"]
-
-	# --- League: simulate NPCs before player match ---
+	# League NPCs simulate first — kept inline because it's a single one-line
+	# call into LeagueManager, not a "phase" in its own right.
 	league.simulate_npc_week(week_in_season)
 
-	# --- Apply bench outcomes (passive rest/train/study) ---
-	for p in benched:
-		var bench_outcome: Dictionary = _resolve_bench(p)
-		week_result.bench_results.append(bench_outcome)
+	# --- Phase 1: bench resolution -----------------------------------------
+	var bench_outcomes: Array = WeekResolverC.resolve_bench(benched)
+	week_result.bench_results = bench_outcomes
+	SignalHub.bench_resolved.emit(bench_outcomes)
 
-	# --- Trait Matchup: opponent + situations ---
-	var opponent_traits:  Array[String] = TraitMatchup.generate_opponent_traits(
-		season, week_in_season, cal_entry["label"]
+	# --- Phase 2: match context generation ---------------------------------
+	var ctx: MatchContext = WeekResolverC.generate_match_context(
+		week, week_in_season, season, active
 	)
-	var situations:       Array[String] = TraitMatchup.generate_situations(
-		season, week_in_season, match_type
+	week_result.match_type           = ctx.match_type
+	week_result.opponent_traits      = ctx.opponent_traits
+	week_result.situations           = ctx.situations
+	week_result.player_match_traits  = ctx.player_match_traits
+	week_result.matchup_modifier     = float(ctx.matchup_modifier)
+	week_result.patch_buffed         = ctx.patch.get("buffed", "")
+	week_result.patch_nerfed         = ctx.patch.get("nerfed", "")
+	SignalHub.match_context_generated.emit(ctx)
+
+	# --- Phase 3: match simulation -----------------------------------------
+	var match_sim: Dictionary = WeekResolverC.simulate_match(active, ctx, synergy)
+	week_result.won                  = match_sim["won"]
+	week_result.team_score           = match_sim["team_score"]
+	week_result.opponent_score       = match_sim["opponent_score"]
+	week_result.player_results       = match_sim["players"]
+	week_result.counter_ratio        = match_sim["counter_ratio"]
+	week_result.counter_mult         = match_sim["counter_mult"]
+	week_result.coverage_hits        = match_sim["coverage_hits"]
+	week_result.coverage_mult        = match_sim["coverage_mult"]
+	week_result.synergy_bonus_total  = match_sim["synergy_bonus_total"]
+	week_result.synergy_per_player   = match_sim["synergy_per_player"]
+	week_result.synergized_pairs     = synergy.synergized_pairs_in(active) if synergy != null else []
+	week_result.study_used_by_player = match_sim["pre_study"]
+	SignalHub.match_simulated.emit(match_sim)
+
+	# --- Phase 4: post-match effects ---------------------------------------
+	WeekResolverC.apply_post_match_effects(
+		active, players, week_result.won, ctx, league, synergy
 	)
-	var player_mt:        Array[String] = TraitMatchup.get_team_traits(active)
-	# Preview modifier for UI compatibility — NO LONGER fed into the formula.
-	var matchup_modifier: int           = TraitMatchup.calculate_matchup_modifier(
-		player_mt, opponent_traits, situations
-	)
-
-	# Store matchup breakdown in week_result for ResolutionScreen
-	week_result.opponent_traits     = opponent_traits
-	week_result.situations          = situations
-	week_result.player_match_traits = player_mt
-	week_result.matchup_modifier    = float(matchup_modifier)
-
-	# --- Run match ---
-	# Multiplicative counter pressure now lives inside Simulation.simulate_team.
-	# Opponent score is the plain seeded threshold; the match math handles
-	# pressure via team-score multipliers, not threshold modifiers.
-	var is_important: bool = match_type in [
-		Calendar.TYPE_IMPORTANT, Calendar.TYPE_TOURNAMENT
-	]
-	var opp_score: int = cal_entry["opponent"] + randi_range(-10, 10)
-
-	# Snapshot study charges for the resolution screen BEFORE Simulation
-	# consumes them, so we can show "Apex used 2 charges" cleanly.
-	var pre_study: Dictionary = {}
-	for p in active:
-		pre_study[p.player_name] = p.study_charges
-
-	var match_sim: Dictionary = Simulation.simulate_team(
-		active, is_important, opp_score, opponent_traits, situations, synergy, week
-	)
-
-	# Consume study charges for any active player who had them.
-	for p in active:
-		if p.study_charges > 0:
-			p.study_charges = 0
-
-	week_result.won            = match_sim["won"]
-	week_result.team_score     = match_sim["team_score"]
-	week_result.opponent_score = match_sim["opponent_score"]
-	week_result.player_results = match_sim["players"]
-	week_result.counter_ratio  = match_sim["counter_ratio"]
-	week_result.counter_mult   = match_sim["counter_mult"]
-	week_result.coverage_hits  = match_sim["coverage_hits"]
-	week_result.coverage_mult  = match_sim["coverage_mult"]
-	week_result.synergy_bonus_total = match_sim["synergy_bonus_total"]
-	week_result.synergy_per_player  = match_sim["synergy_per_player"]
-	week_result.synergized_pairs    = synergy.synergized_pairs_in(active) if synergy != null else []
-	week_result.study_used_by_player = pre_study
-
-	# --- Synergy: increment shared-match counter for active squad ---
-	if synergy != null:
-		synergy.record_match(active)
-
-	# --- League: record player result ---
-	league.record_result(week_result.won)
 	week_result.league_rank = league.player_rank()
-	if week_in_season == Calendar.WEEKS_PER_SEASON:
-		league.apply_season_result(players)
+	SignalHub.post_match_applied.emit(week_result)
 
-	# --- Post-match stat updates ---
-	_update_streaks(week_result.won)
-	_apply_match_stamina_cost(active, is_important)
-	_apply_morale(active, week_result.won, match_type)
-
-	# --- XP ---
-	var level_ups: Array = []
-	for entry in week_result.player_results:
-		var p: Player = entry["player"]
-		p.last_score  = entry["score"]
-		var lu: Array = LevelSystem.award_match_xp_with_result(
-			p, entry["label"], match_type, week_result.won
-		)
-		level_ups.append_array(lu)
-		entry["xp_gained"]   = p.xp_delta
-		entry["level"]       = p.level
-		entry["xp_progress"] = LevelSystem.level_progress(p)
+	# --- Phase 5: XP ------------------------------------------------------
+	var level_ups: Array = WeekResolverC.award_xp(
+		week_result.player_results, ctx.match_type, week_result.won
+	)
 	week_result.level_ups = level_ups
+	SignalHub.xp_awarded.emit(level_ups)
 
-	# --- Goals ---
-	var wis: int = week_in_season
-	goal_manager.on_match_result(week_result.won, match_type == Calendar.TYPE_TOURNAMENT, active, wis)
-	goal_manager.check_quarter_boundary(wis)
-	if goal_manager.quarter_bonus_pending:
-		week_result.quarter_bonus = goal_manager.quarter_bonus_description
-		goal_manager.consume_quarter_bonus(active)
+	# --- Phase 6: goals ---------------------------------------------------
+	var quarter_bonus: String = WeekResolverC.check_goals(
+		goal_manager, active, week_in_season, week_result.won,
+		ctx.match_type == Calendar.TYPE_TOURNAMENT
+	)
+	week_result.quarter_bonus = quarter_bonus
+	SignalHub.goals_checked.emit(week_result)
 
-	# --- New season reset — must run BEFORE week += 1, while week_in_season still equals WEEKS_PER_SEASON ---
-	if week_in_season == Calendar.WEEKS_PER_SEASON:
+	# --- Phase 7: season rotation -----------------------------------------
+	# The resolver tells us IF a rotation should happen; the actual rebinding
+	# of goal_manager / market / league lives here because they're owned by
+	# this autoload. (Static methods can't rebind their callers' references.)
+	var rotation: Dictionary = WeekResolverC.rotate_systems_if_season_end(
+		week_in_season, season
+	)
+	if rotation["season_ended"]:
+		# Capture rank before the reset so the season_ended signal has it.
+		var final_rank: int = league.player_rank()
 		goal_manager = SeasonGoalManager.new()
 		market.reset_for_new_season()
-		league.reset_for_season(season + 1, "Your Team")
+		league.reset_for_season(rotation["next_season_index"], "Your Team")
+		var rank_desc: String = "Rank %d / 8" % final_rank
+		SignalHub.season_ended.emit(final_rank, rank_desc)
 
 	week += 1
 	goal_manager.start_new_quarter(week_in_season)
+	SignalHub.season_rotated.emit(week)
 
-	# --- Set pending banner if a notable event just occurred ---
-	# Priority: quarter goal > season goal > new patch
-	pending_banner = ""
-	var sg: Dictionary = goal_manager.get_display()
-	if week_result.quarter_bonus != "":
-		pending_banner = "🌟 " + week_result.quarter_bonus
-	elif sg.get("achieved", false):
-		pending_banner = "🏆 Season goal complete! " + sg.get("description", "")
-	elif MetaPatch.is_patch_week_one(week) and not Calendar.is_game_over(week):
-		var new_patch: Dictionary = MetaPatch.get_patch(week)
-		pending_banner = "📰 New patch: %s buffed · %s nerfed" % [
-			GameText.trait_label(new_patch["buffed"]).strip_edges(),
-			GameText.trait_label(new_patch["nerfed"]).strip_edges(),
-		]
+	# --- B3: Reactive banner signals ---------------------------------------
+	# Priority: quarter bonus > season goal > new patch > season end.
+	# Each emits its own SignalHub signal; GameWorld connects in _ready().
+	if quarter_bonus != "":
+		SignalHub.quarter_bonus_triggered.emit(quarter_bonus)
+	else:
+		var sg: Dictionary = goal_manager.get_display()
+		if sg.get("achieved", false):
+			SignalHub.goal_achieved.emit(sg.get("description", ""))
+	if MetaPatch.is_patch_week_one(week) and not Calendar.is_game_over(week):
+		var np: Dictionary = MetaPatch.get_patch(week)
+		SignalHub.patch_rotated.emit(np.get("buffed", ""), np.get("nerfed", ""))
+
+	# --- Final lifecycle signals ------------------------------------------
+	SignalHub.week_advanced.emit(week_result)
+	SignalHub.match_resolved.emit(week_result)
 
 	return week_result
-
-
-# ---------------------------------------------------------------------------
-# BENCH RESOLUTION
-# ---------------------------------------------------------------------------
-func _resolve_bench(player: Player) -> Dictionary:
-	var prev_stamina: int = player.stamina
-
-	match player.bench_action:
-		"train":
-			player.stamina = max(player.stamina - Tuning.BENCH_TRAIN_STAMINA_COST, 0)
-			player.burnout = min(player.burnout + 1, 5)
-			var lu: Array = LevelSystem.award_action_xp(player, "train")
-			return {
-				"player":       player,
-				"action":       "train",
-				"stamina_gain": player.stamina - prev_stamina,
-				"xp_gained":    player.xp_delta,
-				"study_charges": player.study_charges,
-				"level_ups":    lu,
-				"narrative":    player.player_name + " trained on the bench. The grind never stops.",
-			}
-
-		"study":
-			# Studying the meta — accrue a charge, no stamina change, small
-			# burnout bump (mental load, not physical drain).
-			var prev_charges: int = player.study_charges
-			player.study_charges = min(
-				player.study_charges + Tuning.BENCH_STUDY_CHARGE_GAIN,
-				Tuning.BENCH_STUDY_MAX_CHARGES
-			)
-			var charge_gain: int = player.study_charges - prev_charges
-			# Tiny morale bump — they feel prepared.
-			player.morale = clamp(player.morale + 2, 0, 100)
-			return {
-				"player":         player,
-				"action":         "study",
-				"stamina_gain":   0,
-				"xp_gained":      0,
-				"study_charges":  player.study_charges,
-				"charge_gain":    charge_gain,
-				"level_ups":      [],
-				"narrative":      "%s studied the meta (%d charge%s ready for next match)." % [
-					player.player_name,
-					player.study_charges,
-					"" if player.study_charges == 1 else "s",
-				],
-			}
-
-		_:  # "rest" and any unrecognized fallthrough
-			var gain: int = Tuning.BENCH_REST_STAMINA_AGGRESSIVE \
-				if player.primary_trait == "aggressive" \
-				else Tuning.BENCH_REST_STAMINA
-			player.stamina = _apply_with_dr(player.stamina, gain, 80, 0.5)
-			player.morale  = _apply_with_dr(player.morale,  Tuning.BENCH_REST_MORALE, 80, 0.5)
-			player.burnout = max(player.burnout - 2, 0)
-			return {
-				"player":       player,
-				"action":       "rest",
-				"stamina_gain": player.stamina - prev_stamina,
-				"xp_gained":    0,
-				"study_charges": player.study_charges,
-				"level_ups":    [],
-				"narrative":    player.player_name + " rested this week. Stamina recovered.",
-			}
-
 
 # ---------------------------------------------------------------------------
 # CONTEXT — everything the hub screen needs.
@@ -438,6 +391,10 @@ func get_week_context() -> Dictionary:
 # Win estimate now reflects the multiplicative counter pressure model.
 # We compute the team's expected score under the counter ratio + patch +
 # synergy effects and compare to the raw opponent threshold.
+#
+# NOTE: stays here (not in WeekResolver) because this is a PRE-match
+# preview — the user reads it on the hub before deciding to advance the
+# week. WeekResolver only knows about resolution-time logic.
 func _win_estimate(
 	active: Array[Player],
 	opp_score: int,
@@ -462,9 +419,9 @@ func _win_estimate(
 	var counter_mult: float = 1.0
 	var ratio: float = counter_data["ratio"]
 	if ratio >= 0.0:
-		counter_mult = 1.0 + Tuning.COUNTER_BONUS_MAX * ratio
+		counter_mult = 1.0 + Balance.match_balance.counter_bonus_max * ratio
 	else:
-		counter_mult = 1.0 + Tuning.COUNTER_PENALTY_MAX * ratio
+		counter_mult = 1.0 + Balance.match_balance.counter_penalty_max * ratio
 
 	# Coverage bonus.
 	var team_traits: Dictionary = {}
@@ -474,7 +431,7 @@ func _win_estimate(
 		var fav: String = TraitMatchup.SITUATION_FAVORS.get(sit, "")
 		if fav != "" and team_traits.has(fav):
 			coverage_hits += 1
-	var coverage_mult: float = 1.0 + Tuning.SITUATION_COVERAGE_BONUS_PER_HIT * float(coverage_hits)
+	var coverage_mult: float = 1.0 + Balance.match_balance.situation_coverage_bonus_per_hit * float(coverage_hits)
 
 	# Synergy estimate.
 	var synergy_bonus: int = 0
@@ -517,51 +474,12 @@ func _preview_counter_ratio(
 			float(contribution) / float(opponent_traits.size()), -1.0, 1.0
 		)
 		var study: int = per_player_study.get(p.player_name, 0)
-		var weight: float = 1.0 + Tuning.STUDY_COUNTER_BONUS_PER_CHARGE * float(study)
+		var weight: float = 1.0 + Balance.match_balance.study_counter_bonus_per_charge * float(study)
 		weighted_sum += per_player_ratio * weight
 		total_weight += weight
 	if total_weight <= 0.0:
 		return { "ratio": 0.0 }
 	return { "ratio": clampf(weighted_sum / total_weight, -1.0, 1.0) }
-
-
-func _update_streaks(won: bool) -> void:
-	for p in active_players():
-		if won:
-			p.win_streak += 1
-		else:
-			p.win_streak = 0
-
-
-func _apply_match_stamina_cost(active: Array[Player], is_important: bool) -> void:
-	var cost: int = Tuning.STAMINA_COST_IMPORTANT if is_important else Tuning.STAMINA_COST_NORMAL
-	for p in active:
-		p.stamina          = max(p.stamina - cost, 0)
-		p.burnout          = min(p.burnout + 1, 5)
-
-
-func _apply_morale(active: Array[Player], won: bool, match_type: String) -> void:
-	var is_important: bool = match_type in [
-		Calendar.TYPE_IMPORTANT, Calendar.TYPE_TOURNAMENT
-	]
-	for p in active:
-		var delta: int = 0
-		if won:
-			delta = Tuning.MORALE_WIN_IMPORTANT if is_important else Tuning.MORALE_WIN_NORMAL
-			if p.primary_trait == "clutch" and is_important:
-				delta += Tuning.MORALE_CLUTCH_BONUS
-		else:
-			delta = Tuning.MORALE_LOSS_IMPORTANT if is_important else Tuning.MORALE_LOSS_NORMAL
-			# volatile players have no extra morale penalty — unpredictability cuts both ways
-		p.morale       = clamp(p.morale + delta, 0, 100)
-		p.morale_delta = delta
-		p.form_history.append(GameText.PERF_LABELS[1])  # updated properly in XP loop
-
-
-func _apply_with_dr(current: int, gain: int, soft_cap: int, dr_factor: float) -> int:
-	if current >= soft_cap:
-		return int(current + gain * dr_factor)
-	return min(current + gain, soft_cap)
 
 
 func _find_player(player_name: String) -> Player:

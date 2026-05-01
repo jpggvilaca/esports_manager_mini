@@ -130,7 +130,7 @@ static func simulate_player(player: Player, is_important: bool, absolute_week: i
 	var study_consumed: int = 0
 	if player.study_charges > 0:
 		study_consumed = player.study_charges
-		var flat: int = Tuning.STUDY_FLAT_SKILL_BONUS * study_consumed
+		var flat: int = Balance.match_balance.study_flat_skill_bonus * study_consumed
 		score += flat
 		breakdown.append({
 			"reason": "📚 Studied the meta (×%d)" % study_consumed,
@@ -233,7 +233,7 @@ static func simulate_team(
 
 	# --- Situation coverage bonus (small multiplicative on top) ---
 	var coverage_hits: int = _count_coverage_hits(players, situations)
-	var coverage_mult: float = 1.0 + Tuning.SITUATION_COVERAGE_BONUS_PER_HIT * float(coverage_hits)
+	var coverage_mult: float = 1.0 + Balance.match_balance.situation_coverage_bonus_per_hit * float(coverage_hits)
 	var team_score_after_coverage: int = int(round(float(team_score_after_counter) * coverage_mult))
 
 	# --- Synergy (flat per-player bonus) ---
@@ -325,7 +325,7 @@ static func _calc_counter_ratio(
 		)
 		# Study weight: each consumed charge boosts this player's contribution.
 		var study: int = per_player_study.get(p.player_name, 0)
-		var weight: float = 1.0 + Tuning.STUDY_COUNTER_BONUS_PER_CHARGE * float(study)
+		var weight: float = 1.0 + Balance.match_balance.study_counter_bonus_per_charge * float(study)
 		weighted_sum += per_player_ratio * weight
 		total_weight += weight
 
@@ -343,8 +343,8 @@ static func _calc_counter_ratio(
 # ---------------------------------------------------------------------------
 static func _ratio_to_multiplier(ratio: float) -> float:
 	if ratio >= 0.0:
-		return 1.0 + Tuning.COUNTER_BONUS_MAX * ratio
-	return 1.0 + Tuning.COUNTER_PENALTY_MAX * ratio   # ratio is negative → subtraction
+		return 1.0 + Balance.match_balance.counter_bonus_max * ratio
+	return 1.0 + Balance.match_balance.counter_penalty_max * ratio   # ratio is negative → subtraction
 
 
 # ---------------------------------------------------------------------------

@@ -37,9 +37,9 @@ func consume_quarter_bonus(players: Array[Player]) -> void:
 	quarter_bonus_pending = false
 	
 	for p: Player in players:
-		p.morale = min(p.morale + Tuning.QUARTER_BONUS_MORALE, 100)
-		p.xp       += Tuning.QUARTER_BONUS_XP
-		p.xp_delta += Tuning.QUARTER_BONUS_XP
+		p.morale = min(p.morale + Balance.progression_balance.quarter_bonus_morale, 100)
+		p.xp       += Balance.progression_balance.quarter_bonus_xp
+		p.xp_delta += Balance.progression_balance.quarter_bonus_xp
 
 
 func start_new_quarter(week_in_season: int) -> void:
@@ -147,7 +147,7 @@ func _check_quarter(won: bool, players: Array[Player], _week_in_season: int) -> 
 				quarter_goal["current"] += 1
 			if quarter_goal["current"] >= quarter_goal["target"]:
 				quarter_goal["achieved"] = true
-				_trigger_quarter_bonus("Crushed the quarter — team morale +%d, all players +%d XP" % [Tuning.QUARTER_BONUS_MORALE, Tuning.QUARTER_BONUS_XP])
+				_trigger_quarter_bonus("Crushed the quarter — team morale +%d, all players +%d XP" % [Balance.progression_balance.quarter_bonus_morale, Balance.progression_balance.quarter_bonus_xp])
 		"quarter_no_loss":
 			if not won:
 				quarter_goal["clean"] = false
@@ -158,7 +158,7 @@ func _check_quarter(won: bool, players: Array[Player], _week_in_season: int) -> 
 				if p.form_label == "🔥 In Form":
 					quarter_goal["current"]  = 1
 					quarter_goal["achieved"] = true
-					_trigger_quarter_bonus("Player hit top form — team morale +%d, all players +%d XP" % [Tuning.QUARTER_BONUS_MORALE, Tuning.QUARTER_BONUS_XP])
+					_trigger_quarter_bonus("Player hit top form — team morale +%d, all players +%d XP" % [Balance.progression_balance.quarter_bonus_morale, Balance.progression_balance.quarter_bonus_xp])
 					break
 
 
@@ -170,7 +170,7 @@ func check_quarter_boundary(week_in_season: int) -> void:
 	if quarter_goal.get("type") == "quarter_no_loss" and quarter_goal.get("clean", false):
 		if not quarter_goal.get("achieved", false):
 			quarter_goal["achieved"] = true
-			_trigger_quarter_bonus("Flawless quarter — team morale +%d, all players +%d XP" % [Tuning.QUARTER_BONUS_MORALE, Tuning.QUARTER_BONUS_XP])
+			_trigger_quarter_bonus("Flawless quarter — team morale +%d, all players +%d XP" % [Balance.progression_balance.quarter_bonus_morale, Balance.progression_balance.quarter_bonus_xp])
 
 
 func _trigger_quarter_bonus(description: String) -> void:

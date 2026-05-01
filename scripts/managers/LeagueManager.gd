@@ -91,12 +91,12 @@ func _pick_npc_strengths() -> Array[int]:
 	# Base range NPC_STRENGTH_MIN..NPC_STRENGTH_MAX. Each season adds NPC_SEASON_RAMP
 	# to every NPC (capped). Strength caps at NPC_STRENGTH_HARD_CAP so any team is beatable.
 	seed(season * 1337 + 13)
-	var season_bonus: int = min((season - 1) * Tuning.NPC_SEASON_RAMP, Tuning.NPC_SEASON_RAMP_CAP)
+	var season_bonus: int = min((season - 1) * Balance.league_balance.npc_season_ramp, Balance.league_balance.npc_season_ramp_cap)
 	var result: Array[int] = []
-	var span: int = Tuning.NPC_STRENGTH_MAX - Tuning.NPC_STRENGTH_MIN + 1
+	var span: int = Balance.league_balance.npc_strength_max - Balance.league_balance.npc_strength_min + 1
 	for i in 7:
-		var base: int = Tuning.NPC_STRENGTH_MIN + (randi() % span)
-		result.append(min(base + season_bonus, Tuning.NPC_STRENGTH_HARD_CAP))
+		var base: int = Balance.league_balance.npc_strength_min + (randi() % span)
+		result.append(min(base + season_bonus, Balance.league_balance.npc_strength_hard_cap))
 	return result
 
 
@@ -174,17 +174,17 @@ func apply_season_result(players: Array[Player]) -> String:
 
 	if season_rank <= TOP_TIER_CUTOFF:
 		for p: Player in players:
-			p.morale  = min(p.morale + Tuning.LEAGUE_TOP_MORALE_BONUS, 100)
-			p.xp      += Tuning.LEAGUE_TOP_XP_BONUS
-			p.xp_delta += Tuning.LEAGUE_TOP_XP_BONUS
+			p.morale  = min(p.morale + Balance.league_balance.league_top_morale_bonus, 100)
+			p.xp      += Balance.league_balance.league_top_xp_bonus
+			p.xp_delta += Balance.league_balance.league_top_xp_bonus
 		description = "🏅 Season #%d: Finished rank %d — morale +%d, +%d XP all players." % [
-			season, season_rank, Tuning.LEAGUE_TOP_MORALE_BONUS, Tuning.LEAGUE_TOP_XP_BONUS
+			season, season_rank, Balance.league_balance.league_top_morale_bonus, Balance.league_balance.league_top_xp_bonus
 		]
 	elif season_rank > BOT_TIER_CUTOFF:
 		for p: Player in players:
-			p.morale  = max(p.morale - Tuning.LEAGUE_BOT_MORALE_PENALTY, 0)
+			p.morale  = max(p.morale - Balance.league_balance.league_bot_morale_penalty, 0)
 		description = "📉 Season #%d: Finished rank %d — morale −%d." % [
-			season, season_rank, Tuning.LEAGUE_BOT_MORALE_PENALTY
+			season, season_rank, Balance.league_balance.league_bot_morale_penalty
 		]
 	else:
 		description = "Season #%d: Finished rank %d." % [season, season_rank]
@@ -219,4 +219,3 @@ func get_standings() -> Array[Dictionary]:
 			t["tier"] = "mid"
 		result.append(t)
 	return result
-

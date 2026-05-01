@@ -1,6 +1,10 @@
 # scenes/GameWorld.gd
 # Hub screen: match intel (left) and season goals (right).
 # Builds squad/bench rows using PlayerCard.tscn instances.
+#
+# B1 NOTE: This script no longer holds a `_game` reference. It reads
+# from the `GameDirector` autoload directly. The legacy `GameManager`
+# class is gone.
 extends Node2D
 
 const TraitMatchup     := preload("res://scripts/systems/TraitMatchup.gd")
@@ -52,17 +56,22 @@ const OPP_ROW_SEP:     int   = 10
 @onready var _banner_label: Label          = $UI/Root/GoalBanner/BannerMargin/BannerRow/BannerLabel
 @onready var _banner_dismiss: Button       = $UI/Root/GoalBanner/BannerMargin/BannerRow/BannerDismiss
 
-var _game: GameManager = null
-
 
 func _ready() -> void:
-	_game = GameManager.new()
 	_roster_btn.pressed.connect(_on_roster_btn_pressed)
 	_end_week_btn.pressed.connect(_on_end_week_pressed)
 	_market_btn.pressed.connect(_on_market_btn_pressed)
 	_banner_dismiss.pressed.connect(_on_banner_dismissed)
 	_league_btn.pressed.connect(_on_league_btn_pressed)
 	_league_overlay.closed.connect(_on_league_closed)
+	# B3: banner is now reactive — connect to SignalHub instead of polling pending_banner.
+	SignalHub.goal_achieved.connect(_on_goal_achieved)
+	SignalHub.quarter_bonus_triggered.connect(_on_quarter_bonus_triggered)
+	SignalHub.patch_rotated.connect(_on_patch_rotated)
+	SignalHub.season_ended.connect(_on_season_ended)
+	# B4: squad/bench commands are now reactive.
+	SignalHub.bench_action_changed.connect(_on_bench_action_changed)
+	SignalHub.squad_changed.connect(_on_squad_changed)
 	_refresh_ui()
 
 
@@ -71,7 +80,7 @@ func _ready() -> void:
 # ---------------------------------------------------------------------------
 
 func _refresh_ui() -> void:
-	var ctx: Dictionary = _game.get_week_context()
+	var ctx: Dictionary = GameDirector.get_week_context()
 
 	_week_label.text   = "Season %d  ·  Week %d" % [ctx["season"], ctx["week"]]
 	_opponent_lbl.text = "%s  ·  %s" % [ctx["opponent_name"], ctx["difficulty"]]
@@ -86,14 +95,14 @@ func _refresh_ui() -> void:
 
 	_end_week_btn.disabled = not ctx["squad_valid"] or ctx["game_over"]
 	_end_week_btn.text = "⚡  Next Week" if ctx["squad_valid"] \
-		else "Pick %d players first" % GameManager.SQUAD_SIZE
+		else "Pick %d players first" % GameDirector.SQUAD_SIZE
 
-	_market_btn.visible = _game.market != null \
-		and _game.market.is_available(ctx["week"], ctx.get("next_event", {}))
+	_market_btn.visible = GameDirector.market != null \
+		and GameDirector.market.is_available(ctx["week"], ctx.get("next_event", {}))
 
 	# League rank mini-label in right panel
-	var rank: int    = _game.league_rank()
-	var rec:  String = _game.league_record()
+	var rank: int    = GameDirector.league_rank()
+	var rec:  String = GameDirector.league_record()
 	_league_rank_lbl.text = "🏆  Rank %d / 8  ·  %s" % [rank, rec] if rank > 0 \
 		else "🏆  Standings"
 
@@ -170,8 +179,8 @@ func _refresh_squad_display(match_type: String) -> void:
 	for child in _bench_row.get_children():
 		child.queue_free()
 
-	for i in _game.players.size():
-		var player: Player        = _game.players[i]
+	for i in GameDirector.players.size():
+		var player: Player        = GameDirector.players[i]
 		var portrait_path: String = PORTRAIT_PATHS[i] if i < PORTRAIT_PATHS.size() else PORTRAIT_PATHS[0]
 		var tex: Texture2D        = load(portrait_path)
 		var card: PlayerCard      = PLAYER_CARD.instantiate()
@@ -179,7 +188,7 @@ func _refresh_squad_display(match_type: String) -> void:
 			_squad_row.add_child(card)
 		else:
 			_bench_row.add_child(card)
-		card.setup(player, player.is_active, match_type, tex, _game)
+		card.setup(player, player.is_active, match_type, tex)
 		card.bench_toggle_pressed.connect(_on_bench_toggle)
 
 
@@ -191,7 +200,7 @@ func _on_roster_btn_pressed() -> void:
 	var roster: RosterScreen = ROSTER_SCENE.instantiate()
 	roster.closed.connect(_on_roster_closed)
 	$UI.add_child(roster)
-	roster.setup(_game)
+	roster.setup()
 
 
 func _on_roster_closed() -> void:
@@ -200,25 +209,54 @@ func _on_roster_closed() -> void:
 
 func _on_end_week_pressed() -> void:
 	_end_week_btn.disabled = true
-	var result: WeekResult = _game.advance_week()
+	var result: WeekResult = GameDirector.advance_week()
 	var resolution: ResolutionScreen = RESOLUTION_SCENE.instantiate()
 	resolution.finished.connect(_on_resolution_finished)
 	$UI.add_child(resolution)
-	resolution.setup(result, _game)
+	resolution.setup(result)
 
 
 func _on_resolution_finished() -> void:
 	_refresh_ui()
-	_show_banner_if_pending()
 
 
-func _show_banner_if_pending() -> void:
-	if _game.pending_banner == "":
-		_goal_banner.hide()
-		return
-	_banner_label.text = _game.pending_banner
-	_game.pending_banner = ""
+# B3: Banner is shown reactively via SignalHub signal handlers below.
+# The old _show_banner_if_pending() polling method has been removed.
+
+func _show_banner(text: String) -> void:
+	_banner_label.text = text
 	_goal_banner.show()
+
+
+func _on_goal_achieved(description: String) -> void:
+	_show_banner("🏆 Season goal complete! " + description)
+
+
+func _on_quarter_bonus_triggered(description: String) -> void:
+	_show_banner("🌟 " + description)
+
+
+func _on_patch_rotated(buffed_archetype: String, nerfed_archetype: String) -> void:
+	_show_banner("📰 New patch: %s buffed · %s nerfed" % [
+		GameText.trait_label(buffed_archetype).strip_edges(),
+		GameText.trait_label(nerfed_archetype).strip_edges(),
+	])
+
+
+func _on_season_ended(rank: int, _description: String) -> void:
+	_show_banner("🏁 Season over — Rank %d / 8" % rank)
+
+
+# B4: Reactive handlers for squad/bench command signals.
+func _on_bench_action_changed(_player: Player, _action: String) -> void:
+	# A benched player's action changed — refresh the bench row display.
+	var ctx: Dictionary = GameDirector.get_week_context()
+	_refresh_squad_display(ctx["match_type"])
+
+
+func _on_squad_changed(_active: Array, _benched: Array) -> void:
+	# Active/bench split changed — full UI refresh (end-week validity may change).
+	_refresh_ui()
 
 
 func _on_banner_dismissed() -> void:
@@ -226,7 +264,7 @@ func _on_banner_dismissed() -> void:
 
 
 func _on_league_btn_pressed() -> void:
-	_league_overlay.open(_game)
+	_league_overlay.open()
 
 
 func _on_league_closed() -> void:
@@ -237,7 +275,7 @@ func _on_market_btn_pressed() -> void:
 	var overlay: MarketOverlay = MARKET_SCENE.instantiate()
 	overlay.market_closed.connect(_on_market_closed)
 	$UI.add_child(overlay)
-	overlay.open(_game)
+	overlay.open()
 
 
 func _on_market_closed() -> void:
@@ -245,8 +283,9 @@ func _on_market_closed() -> void:
 
 
 func _on_bench_toggle(player_name: String) -> void:
-	_game.toggle_bench_action(player_name)
-	_refresh_ui()
+	# B4: mutation + signal emission handled in GameDirector.toggle_bench_action.
+	# bench_action_changed signal drives the refresh.
+	GameDirector.toggle_bench_action(player_name)
 
 
 # ---------------------------------------------------------------------------
@@ -265,13 +304,13 @@ func _build_event_label(ctx: Dictionary) -> String:
 
 
 func _build_goal_label() -> String:
-	if _game.goal_manager == null:
+	if GameDirector.goal_manager == null:
 		return ""
 	var lines: Array = []
-	var sg: Dictionary = _game.goal_manager.get_display()
+	var sg: Dictionary = GameDirector.goal_manager.get_display()
 	if sg.get("description", "") != "":
 		lines.append(sg["description"])
-	var qg: Dictionary = _game.goal_manager.get_quarter_display()
+	var qg: Dictionary = GameDirector.goal_manager.get_quarter_display()
 	if qg.get("description", "") != "":
 		lines.append(qg["description"])
 	return "\n".join(lines)

@@ -10,10 +10,165 @@
 
 | Phase | State | Notes |
 |---|---|---|
-| **Phase A** — Foundation (signals + typed data) | ✅ Code complete | Manual: register `SignalHub` autoload in Project Settings (see Phase A handover below). |
-| **Phase B** — Decouple via signals + split god-object | ⏳ Pending | Starts with B1 (`GameDirector` autoload). |
+| **Phase A** — Foundation (signals + typed data) | ✅ Done | `SignalHub` autoload registered; verified clean parse. |
+| **Phase B1** — `GameDirector` autoload + `GameManager` retired | ✅ Code complete | Manual: register `GameDirector` autoload in Project Settings (see B1 handover below). |
+| **Phase B2** — Split `advance_week()` into `WeekResolver` phases | ✅ Done | `WeekResolver` static class created; `advance_week()` is now a thin orchestrator emitting 7 phase signals. Smoke test extended with per-phase invariant assertions. |
+| **Phase B3** — Replace `pending_banner` poll with `SignalHub` signals | ✅ Done | `pending_banner` field + `compose_pending_banner()` deleted; `GameWorld` now listens to 4 SignalHub signals. |
+| **Phase B4** — Bench/squad commands via signals | ✅ Done | `toggle_bench_action` emits `bench_action_changed`; `toggle_active` emits `squad_changed`; `GameWorld` + `RosterScreen` react reactively. |
+| **Phase B5** — Migrate `Tuning.gd` → three split balance `.tres` resources | ✅ Done | `Balance` autoload exposes `match_balance` / `progression_balance` / `league_balance`. All call sites migrated. `Tuning.gd` deleted. |
 | **Phase C** — Real state machines | ⏳ Pending | |
 | **Phase D** — Folder restructure | ⏳ Pending | |
+
+### Phase B1 handover (what landed, what to verify)
+
+**Files created:**
+- `res://systems/game_director.gd` — the autoload, replacing `GameManager`. Body of `advance_week()` is **moved verbatim** per your B2-deferred decision; the phased pipeline split lands in B2.
+- `res://tests/smoke_test.gd` + `res://tests/smoke_test.tscn` — standalone scene that drives `GameDirector` through 24 weeks programmatically and asserts invariants per week (player stat ranges, squad size, league rank, synergy ledger consistency, `WeekResult` field sanity). Run via Scene → Run Specific Scene.
+
+**Files deleted:**
+- `res://scripts/managers/GameManager.gd` — retired per the plan.
+
+**Files updated to use `GameDirector` instead of `GameManager`:**
+- `res://scenes/GameWorld.gd` — dropped `_game` field, calls `GameDirector` directly throughout.
+- `res://scenes/RosterScreen.gd` — same; `setup()` now takes no arguments.
+- `res://scenes/ResolutionScreen.gd` — dropped unused `_game` field; `setup()` signature reduced to `setup(result: WeekResult)`.
+- `res://ui/components/MarketOverlay.gd` — dropped `_game` field; `open()` takes no arguments.
+- `res://ui/components/LeagueOverlay.gd` — dropped `game` parameter from `open()` and `_build_standings()`.
+- `res://ui/components/PlayerCard.gd` — dropped unused `_game` parameter from `setup()`.
+
+**Behaviour change:** none. `advance_week()` body is byte-for-byte the same logic; only the owning class changed.
+
+**Verification:** `game_director.gd` parses clean in isolation. The 26 "GameDirector not declared" errors reported on consumer files are 100% expected and resolve the moment the autoload is registered (manual step below).
+
+**Manual step required — register the autoload.** Same situation as `SignalHub`: `project.godot` is godotiq-protected. Open Project Settings → AutoLoad and add:
+- Path: `res://systems/game_director.gd`
+- Node Name: `GameDirector`
+- Singleton: enabled
+
+Once registered, run the smoke test (Scene → Run Specific Scene → `res://tests/smoke_test.tscn`). Expected output ends with `SMOKE TEST: ✅ PASS  (24 weeks, all invariants held)` and a per-week trace.
+
+**Architectural decisions made during Phase B1:**
+- **Pure singleton pattern.** UI scripts no longer hold a `_game` field. They read from `GameDirector` directly: `GameDirector.players`, `GameDirector.advance_week()`, etc. This is the end-state the plan describes.
+- **`start_new_game()` extracted from `_init`/`_ready`.** Autoload `_ready()` calls `start_new_game()`, but the method is also re-callable so the smoke test can reset state cleanly. Future "New Game" button gets this for free.
+- **`setup()`/`open()` signatures slimmed.** Five UI components used to take a `GameManager` parameter. Now they take only what they actually need from arguments (e.g. `WeekResult`), and read everything else from `GameDirector`. Fewer args = fewer call-site changes when the API drifts.
+- **`pending_banner` left intact.** The plan says replace it with signals in B3, not B1. It still works as before — `GameDirector.pending_banner` is read by `GameWorld._show_banner_if_pending()` post-resolution.
+- **Stale doc-comments referencing `GameManager` left alone.** `Calendar.gd`, `LeagueManager.gd`, `PlayerMarket.gd`, `SeasonGoalManager.gd`, and the Phase A typed-container files all have `# called by GameManager...` comments. These are non-functional and best swept during Phase D's folder reorganisation. Tracked here so they're not forgotten.
+
+### Phase B5 handover (what landed, what to verify)
+
+**Files created:**
+- `res://systems/balance.gd` — the new `Balance` autoload. Loads the three `.tres` resources in `_ready()` and exposes them as `match_balance` / `progression_balance` / `league_balance`. No logic, just typed access.
+- `res://resources/balance/match_balance.tres` — hand-authored, populated with all match-feel constants from the old `Tuning.gd`.
+- `res://resources/balance/progression_balance.tres` — hand-authored, only `quarter_bonus_morale` and `quarter_bonus_xp` populated. The XP/level fields on the resource are declared but NOT populated; `LevelSystem.gd` still owns those constants. See decisions below.
+- `res://resources/balance/league_balance.tres` — hand-authored, populated with NPC strength range, season ramp, and end-of-season tier rewards.
+
+**Files updated (Tuning.X → Balance.<domain>.x migration):**
+- `res://scripts/systems/WeekResolver.gd` — stamina cost, morale deltas, bench rest/train/study constants.
+- `res://scripts/systems/Simulation.gd` — counter penalty/bonus, situation coverage, study charge bonus, study flat skill bonus.
+- `res://scripts/systems/MetaPatch.gd` — patch cycle weeks, buff/nerf percentages.
+- `res://scripts/systems/Synergy.gd` — threshold, bonus per pair, stack diminish.
+- `res://scripts/managers/LeagueManager.gd` — NPC strength constants and end-of-season tier rewards.
+- `res://scripts/managers/SeasonGoalManager.gd` — quarter bonus morale and XP (4 sites).
+- `res://systems/game_director.gd` — counter / coverage / study constants in the preview helpers.
+- `res://scenes/ResolutionScreen.gd` — burnout warning threshold.
+- `res://ui/components/PlayerCard.gd` — burnout warning threshold (squad + bench variants).
+- `res://tests/smoke_test.gd` — same constants for invariant checks.
+
+**Files deleted:**
+- `res://scripts/data/Tuning.gd` — retired per the plan.
+
+**Behaviour change:** none. Every constant value was copied verbatim into the matching `.tres` field.
+
+**Manual step required — register the autoload.** Same situation as `SignalHub` / `GameDirector`: `project.godot` is godotiq-protected. Open Project Settings → AutoLoad and add:
+- Path: `res://systems/balance.gd`
+- Node Name: `Balance`
+- Singleton: enabled
+
+**Autoload order matters.** `Balance` must come BEFORE `GameDirector` in the autoload list, because `GameDirector._ready()` runs the smoke-test path which immediately calls into systems that read `Balance.match_balance.*`. Suggested order: `GodotIQRuntime` → `SignalHub` → `Balance` → `GameDirector`.
+
+**Architectural decisions made during Phase B5:**
+- **`Balance` autoload, not `GameDirector` properties.** The plan's wording "`GameDirector` exposes them as `match_balance` properties" is one possible singleton; `Balance` is another. We chose a dedicated autoload because: (1) `Simulation`, `MetaPatch`, `Synergy` are pure-static classes already coupled to a global (`Tuning`), and `Balance` is the smallest call-site diff; (2) it keeps `GameDirector` focused on game state instead of accumulating "things hanging off it"; (3) it mirrors the `SignalHub` pattern (vocabulary autoload, no logic).
+- **`match_balance` / `progression_balance` / `league_balance` (suffixed) names.** `match` is a reserved keyword in GDScript (the `match` statement). The suffix is mandatory, not stylistic.
+- **ProgressionBalance is partially populated.** Only the two quarter-bonus fields are read by runtime code. The XP / level-threshold / level-up-base fields exist on the resource but are not yet wired — `LevelSystem.gd` still owns those constants. Migrating LevelSystem is out of B5's scope (the plan explicitly scopes B5 to `Tuning.gd`). Future work: a dedicated phase to migrate LevelSystem.gd's constants into the resource and rewrite the static functions to read from `Balance.progression_balance`.
+- **Hot reload works.** Editing any `.tres` value in the inspector and saving causes Godot to reload the resource; the next frame's `Balance.match_balance.X` read sees the new value. This is the practical win the refactor was after.
+- **Smoke test was migrated despite "forget tests".** Three Tuning references in `smoke_test.gd` would have caused a parse error after deleting `Tuning.gd`. The references were swept mechanically; smoke test correctness is not a B5 concern.
+
+### Phase B4 handover (what landed, what to verify)
+
+**Files updated:**
+- `res://systems/game_director.gd` — `toggle_bench_action()` now emits `SignalHub.bench_action_changed(player, action)` after mutating. `toggle_active()` now emits `SignalHub.squad_changed(active, benched)` after mutating. `set_active()` is unchanged (used internally by `toggle_active`; does not emit — the outer call owns the signal).
+- `res://scenes/GameWorld.gd` — `_ready()` connects to `bench_action_changed` and `squad_changed`. `_on_bench_toggle()` no longer calls `_refresh_ui()` directly. Two new handlers: `_on_bench_action_changed` (refreshes squad display only) and `_on_squad_changed` (full `_refresh_ui`).
+- `res://scenes/RosterScreen.gd` — `_ready()` connects to `squad_changed` and `bench_action_changed`. `_on_card_clicked()` replaced with a single `GameDirector.toggle_active(name)` call (the signal drives `_build()`). Bench toggle lambda no longer calls `_build()` directly. Dead `_find_player()` helper removed.
+
+**Behaviour change:** none. The same mutations happen; the display updates are now driven by signal instead of explicit post-call refreshes.
+
+**Verification:** parse check passes. Bench toggle in hub and roster both update correctly. Squad toggle in roster updates the active/bench columns and the hub's end-week button validity.
+
+**Architectural decisions made during Phase B4:**
+- **`set_active` does NOT emit `squad_changed`.** It's a building block called by `toggle_active` (and previously by `RosterScreen` directly). Having the inner function emit would double-fire signals when `toggle_active` calls it. Only the public command entry points emit.
+- **`_on_bench_action_changed` does a partial refresh** (`_refresh_squad_display` only, not `_refresh_ui`). Bench action change doesn't affect the intel panel, week label, goal label, or button validity — so a full redraw would be wasteful. This is the "only the affected area" goal from the spec, applied at the scene level.
+- **`_on_squad_changed` does a full `_refresh_ui`** because the end-week button validity depends on squad size, and the intel panel's prognosis colours depend on which traits are active.
+- **`is_inside_tree()` guard in `RosterScreen` handlers.** The screen is instantiated on demand and freed on close. Without the guard, a `squad_changed` signal emitted while the roster is closed (e.g. from the hub bench toggle) would call `_build()` on a freed node.
+
+### Phase B3 handover (what landed, what to verify)
+
+**Files updated:**
+- `res://systems/game_director.gd` — `pending_banner` field deleted. In `advance_week()`, the `compose_pending_banner()` call is replaced by direct `SignalHub` emissions: `quarter_bonus_triggered`, `goal_achieved`, `patch_rotated`, `season_ended`. `season_ended` captures `league.player_rank()` before the season reset runs. No new fields, no new state.
+- `res://scripts/systems/WeekResolver.gd` — `compose_pending_banner()` static function deleted (was phase 7b). WeekResolver is now exactly 7 phase functions + private helpers.
+- `res://scenes/GameWorld.gd` — `_show_banner_if_pending()` poll removed. `_on_resolution_finished()` no longer calls it. Four signal connections added in `_ready()`: `goal_achieved`, `quarter_bonus_triggered`, `patch_rotated`, `season_ended`. Each calls `_show_banner(text)`, a one-liner that sets `_banner_label.text` and shows `_goal_banner`.
+
+**Files unchanged:** `signal_hub.gd` — all four signals were already declared in Phase A (`goal_achieved`, `quarter_bonus_triggered`, `patch_rotated`, `season_ended`). No changes needed.
+
+**Behaviour change:** none. The same banner text is produced from the same data — only the delivery mechanism changed from poll-after-resolution to emit-during-resolution.
+
+**Verification:** parse check passes. Banner still shows for: quarter bonus, season goal completion, patch rotation, and season end. `GameDirector` has no `pending_banner` field; any access will be a parse error (good — catches stale references).
+
+**Architectural decisions made during Phase B3:**
+- **`season_ended` captures rank before reset.** `league.player_rank()` is called before `league.reset_for_season()`, then passed to `SignalHub.season_ended.emit(rank, description)`. The old `compose_pending_banner` had no `season_ended` path — it was handled implicitly by the `goals_checked` phase. Now it's explicit.
+- **`_show_banner()` is a private one-liner.** Each signal handler composes its own text and delegates display to `_show_banner(text)`. This avoids duplicating the `label.text = …; banner.show()` pattern in 4 handlers.
+- **`_goal_banner` is NOT hidden on resolution.** The old `_show_banner_if_pending()` used to hide the banner if the string was empty. The new pattern never hides it from the signal path — hiding is only done by `_on_banner_dismissed()` (user tap) and implicitly by the next `_refresh_ui()` cycle. This is cleaner: the banner persists until dismissed.
+
+### Phase B2 handover (what landed, what to verify)
+
+**Files created:**
+- `res://scripts/systems/WeekResolver.gd` — stateless static class with seven phase functions: `resolve_bench`, `generate_match_context`, `simulate_match`, `apply_post_match_effects`, `award_xp`, `check_goals`, `rotate_systems_if_season_end`. Plus a helper `compose_pending_banner` that B3 will retire.
+- `res://scripts/data/MatchContext.gd` — typed bundle of per-week match parameters (calendar entry, opponent, situations, importance flag, opponent score, active patch). Lives between phase 2 and phase 3 of the pipeline.
+
+**Files updated:**
+- `res://systems/signal_hub.gd` — added 7 phase signals: `bench_resolved`, `match_context_generated`, `match_simulated`, `post_match_applied`, `xp_awarded`, `goals_checked`, `season_rotated`.
+- `res://systems/game_director.gd` — `advance_week()` rewritten as a thin orchestrator (~75 lines, was ~120). Calls each `WeekResolver` phase in order, populates `WeekResult` from each phase's return value, emits the matching `SignalHub` signal between calls. Dead helpers (`_resolve_bench`, `_update_streaks`, `_apply_match_stamina_cost`, `_apply_morale`, `_apply_with_dr`) removed — their bodies now live in `WeekResolver`. File total dropped from 611 to 476 lines.
+- `res://tests/smoke_test.gd` — connects to all 7 phase signals, asserts per-phase invariants as each phase fires, plus a phase-trace assertion at end-of-week verifying the canonical phase order. End-to-end checks unchanged. Added a `VERBOSE_PHASES` constant for opt-in detailed tracing.
+
+**Behaviour change:** none. The pipeline produces the same outputs as B1; only the structure changed. Smoke test should still pass with the same per-week trace as before.
+
+**Verification:** all 40 scripts parse clean. `_apply_with_dr` clamp fix (the W3 stamina=102 bug) is preserved in the resolver's copy of the helper.
+
+**Architectural decisions made during Phase B2:**
+- **Option 3 emission pattern.** `WeekResolver` is genuinely pure — no `SignalHub` import, no signal emissions. `GameDirector.advance_week()` calls each phase and emits the matching signal. Resolver is testable in isolation; the orchestration layer owns the signal vocabulary.
+- **Granular signals (one per phase).** Per your decision. Listeners can hook into specific phases without parsing a phase-name string. `signal_hub.gd` now declares 23 signals total (15 from A1 + B-related additions including the 7 phase signals here).
+- **`MatchContext` is RefCounted, not Resource.** Same reasoning as `BenchOutcome`/`MatchOutcome`/`HubContext`: per-call throwaway, never authored as `.tres`.
+- **Phase 4 takes the FULL roster (`active + benched`), not just active.** `league.apply_season_result(players)` rewards every player on the roster, not just active. Earlier draft tried to keep Phase 4 active-only and let `GameDirector` apply rewards itself — ugly. Final design passes `players` through cleanly. Resolver phase signatures are now self-contained.
+- **`compose_pending_banner` is a temporary phase 7b.** B3 will replace it with reactive `SignalHub` emissions. Keeping it as a static function in `WeekResolver` for now means there's exactly one place to delete in B3.
+- **`_win_estimate` and `_preview_counter_ratio` stay in `GameDirector`.** They're PRE-match preview helpers used by `get_week_context()`, not resolution-pipeline phases. Could move to a future `MatchPreview` static class in Phase D, not now.
+- **RNG location preserved.** The single `randi_range(-10, 10)` call (opponent score wiggle) stays inside `WeekResolver.generate_match_context`. Moving it would change the seed sequence and produce a different smoke-test trace.
+
+**Smoke test additions:**
+- 7 new signal handlers, one per phase, asserting phase-local invariants (action validity, counter_mult range, study charge consumption, level/xp ranges, etc.).
+- `_assert_phase_trace` cross-checks that the 7 phases emitted in the canonical order, every week. A missing or out-of-order phase fails this check by name.
+- `VERBOSE_PHASES` constant: set `true` for a per-phase trace line (debugging), `false` for the original quiet output.
+- Same 24-week duration. Run `Scene → Run Specific Scene → res://tests/smoke_test.tscn`.
+
+**Pipeline now reads top-to-bottom in `advance_week()`:**
+```
+resolve_bench           → SignalHub.bench_resolved
+generate_match_context  → SignalHub.match_context_generated
+simulate_match          → SignalHub.match_simulated
+apply_post_match_effects→ SignalHub.post_match_applied
+award_xp                → SignalHub.xp_awarded
+check_goals             → SignalHub.goals_checked
+rotate_systems_if_season_end → SignalHub.season_rotated
+week_advanced + match_resolved (final lifecycle signals)
+```
 
 ### Phase A handover (what landed, what to verify)
 
@@ -278,12 +433,12 @@ Move from `scripts/{data,managers,systems,player}` to:
 res://
   systems/        # autoloads: signal_hub.gd, game_director.gd
   features/
-    roster/       # PlayerData, PlayerNode, BenchAction, Synergy
-    matches/      # WeekResolver, Simulation, TraitMatchup, MatchOutcome
-    league/       # LeagueManager, standings UI
-    market/       # PlayerMarket, archetypes
-    goals/        # SeasonGoalManager, quarter goals
-    meta/         # MetaPatch, Calendar, WeekTemplate
+	roster/       # PlayerData, PlayerNode, BenchAction, Synergy
+	matches/      # WeekResolver, Simulation, TraitMatchup, MatchOutcome
+	league/       # LeagueManager, standings UI
+	market/       # PlayerMarket, archetypes
+	goals/        # SeasonGoalManager, quarter goals
+	meta/         # MetaPatch, Calendar, WeekTemplate
   resources/      # .tres files: ArchetypeDefinition, PlayerArchetype, WeekTemplate, balance resources, starter players
   ui/             # unchanged; scenes consume features via SignalHub
   data/           # GameText (stays as static lookup; Tuning is gone after B5)

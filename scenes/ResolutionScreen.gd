@@ -1,5 +1,8 @@
 # scenes/ResolutionScreen.gd
 # Sequenced resolution with colored act headers and counter results.
+#
+# B1 NOTE: Dropped the unused `_game` field and the `game` setup() parameter
+# — this screen reads everything it needs from the WeekResult passed in.
 class_name ResolutionScreen
 extends Control
 
@@ -10,7 +13,6 @@ signal finished
 const REVEAL_DELAY: float = 0.9
 const ACT_PAUSE:    float = 2.0
 
-var _game:    GameManager = null
 var _result:  WeekResult  = null
 var _events:  Array       = []
 var _index:   int         = 0
@@ -29,9 +31,8 @@ func _ready() -> void:
 	_continue_btn.pressed.connect(_on_continue_btn_pressed)
 
 
-func setup(result: WeekResult, game: GameManager) -> void:
+func setup(result: WeekResult) -> void:
 	_result = result
-	_game   = game
 	_build_event_queue()
 	_start()
 
@@ -261,7 +262,7 @@ func _player_act_event(entry: Dictionary, act_idx: int, player_counters: bool = 
 				notes.append("in form")
 			elif player.form_label == "📉 Struggling":
 				notes.append("on a rough run")
-			if player.burnout >= Tuning.BURNOUT_WARNING_THRESHOLD:
+			if player.burnout >= Balance.match_balance.burnout_warning_threshold:
 				notes.append("burnout showing")
 			var note_str: String = "  (%s)" % ", ".join(notes) if notes.size() > 0 else ""
 			line = player.player_name + note_str

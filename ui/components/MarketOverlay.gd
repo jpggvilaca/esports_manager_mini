@@ -2,6 +2,8 @@
 # Market overlay: browse candidates, confirm hire, replace a roster slot.
 # Card structure lives in RosterCard.tscn / CandidateCard.tscn.
 # This script is data-wiring and event-handling only.
+#
+# B1 NOTE: No longer takes a GameManager — reads GameDirector autoload.
 class_name MarketOverlay
 extends Control
 
@@ -19,15 +21,13 @@ const CANDIDATE_CARD := preload("res://ui/components/CandidateCard.tscn")
 @onready var _cancel_btn:      Button         = $OuterMargin/VBox/ConfirmPanel/ConfirmMargin/ConfirmVBox/CancelConfirmBtn
 @onready var _close_btn:       Button         = $OuterMargin/VBox/CloseBtn
 
-var _game: GameManager = null
 var _selected_candidate: Player = null
 
 
-func open(game: GameManager) -> void:
-	_game = game
+func open() -> void:
 	_cancel_btn.pressed.connect(_on_cancel_pressed)
 	_close_btn.pressed.connect(_on_close_pressed)
-	_game.open_market()
+	GameDirector.open_market()
 	_refresh()
 	show()
 
@@ -35,16 +35,16 @@ func open(game: GameManager) -> void:
 func _refresh() -> void:
 	_selected_candidate = null
 	_confirm_panel.hide()
-	_slots_lbl.text = "Slots: %s" % _game.market_slots_display()
+	_slots_lbl.text = "Slots: %s" % GameDirector.market_slots_display()
 
 	for child in _roster_list.get_children():
 		child.queue_free()
-	for i in _game.players.size():
-		_make_roster_card(_game.players[i], i)
+	for i in GameDirector.players.size():
+		_make_roster_card(GameDirector.players[i], i)
 
 	for child in _candidates_list.get_children():
 		child.queue_free()
-	for candidate in _game.market.current_candidates:
+	for candidate in GameDirector.market.current_candidates:
 		_make_candidate_card(candidate)
 
 
@@ -57,7 +57,7 @@ func _make_roster_card(player: Player, slot_index: int) -> void:
 	card.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.pressed \
 				and event.button_index == MOUSE_BUTTON_LEFT \
-				and _selected_candidate != null and _game.market_has_slots():
+				and _selected_candidate != null and GameDirector.market_has_slots():
 			_on_replace_confirmed(slot_index)
 	)
 
@@ -66,7 +66,7 @@ func _make_candidate_card(candidate: Player) -> void:
 	var card: CandidateCard = CANDIDATE_CARD.instantiate()
 	_candidates_list.add_child(card)
 	card.setup(candidate)
-	if not _game.market_has_slots():
+	if not GameDirector.market_has_slots():
 		card.modulate = Color(0.5, 0.5, 0.5)
 		return
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -82,8 +82,8 @@ func _on_candidate_selected(candidate: Player) -> void:
 	_confirm_lbl.text = "Replace who with %s?" % candidate.player_name
 	for child in _confirm_btn_row.get_children():
 		child.queue_free()
-	for i in _game.players.size():
-		var p: Player = _game.players[i]
+	for i in GameDirector.players.size():
+		var p: Player = GameDirector.players[i]
 		var btn := Button.new()
 		btn.text = "%s (Lv.%d)" % [p.player_name, p.level]
 		btn.custom_minimum_size = Vector2(120, 36)
@@ -96,7 +96,7 @@ func _on_candidate_selected(candidate: Player) -> void:
 func _on_replace_confirmed(slot_index: int) -> void:
 	if _selected_candidate == null:
 		return
-	if _game.hire_candidate(_selected_candidate, slot_index):
+	if GameDirector.hire_candidate(_selected_candidate, slot_index):
 		_refresh()
 	else:
 		_confirm_panel.hide()

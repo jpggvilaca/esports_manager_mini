@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="MatchBalance" format=3 uid="uid://d38vilfyuag3"]
+
+[ext_resource type="Script" uid="uid://b7x4mcxyvm8i1" path="res://resources/balance/match_balance.gd" id="1_54bea"]
+
+[resource]
+script = ExtResource("1_54bea")
+stamina_cost_normal = 13
+stamina_cost_important = 18
+morale_win_normal = 5
+morale_win_important = 8
+morale_loss_normal = -5
+morale_loss_important = -8
+morale_clutch_bonus = 3
+bench_rest_stamina = 15
+bench_rest_stamina_aggressive = 23
+bench_rest_morale = 5
+bench_train_stamina_cost = 5
+bench_study_charge_gain = 1
+bench_study_max_charges = 3
+study_counter_bonus_per_charge = 0.35
+study_flat_skill_bonus = 4
+burnout_warning_threshold = 3
+counter_penalty_max = 0.5
+counter_bonus_max = 0.3
+situation_coverage_bonus_per_hit = 0.04
+patch_cycle_weeks = 4
+patch_buff_pct = 0.2
+patch_nerf_pct = 0.2
+synergy_threshold = 5
+synergy_bonus_per_pair = 5
+synergy_stack_diminish = 0.7
+metadata/_custom_type_script = "uid://b7x4mcxyvm8i1"

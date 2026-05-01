@@ -1,7 +1,9 @@
 # ui/components/LeagueOverlay.gd
 # Full-screen overlay showing league standings.
 # Opened by GameWorld via _on_league_btn_pressed().
-# Self-contained: receives the GameManager on open(), builds rows, closes on button.
+# Self-contained: reads from the GameDirector autoload, builds rows, closes on button.
+#
+# B1 NOTE: No longer takes a GameManager argument.
 extends Control
 
 signal closed
@@ -27,18 +29,18 @@ func _ready() -> void:
 	_close_btn.pressed.connect(_on_close)
 
 
-func open(game: GameManager) -> void:
-	_season_label.text = "Season %d  ·  Week %d" % [game.season, game.week_in_season]
-	_build_standings(game)
+func open() -> void:
+	_season_label.text = "Season %d  ·  Week %d" % [GameDirector.season, GameDirector.week_in_season]
+	_build_standings()
 	visible = true
 
 
-func _build_standings(game: GameManager) -> void:
+func _build_standings() -> void:
 	for child in _standings_list.get_children():
 		child.queue_free()
 
-	var standings: Array[Dictionary] = game.get_standings()
-	var rank_int:  int               = game.league_rank()
+	var standings: Array[Dictionary] = GameDirector.get_standings()
+	var rank_int:  int               = GameDirector.league_rank()
 
 	for entry in standings:
 		var row: PanelContainer = _make_row(entry, rank_int)

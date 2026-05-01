@@ -60,7 +60,7 @@ func matches_together(name_a: String, name_b: String) -> int:
 # IS SYNERGIZED — has this pair reached the threshold?
 # ---------------------------------------------------------------------------
 func is_synergized(name_a: String, name_b: String) -> bool:
-	return matches_together(name_a, name_b) >= Tuning.SYNERGY_THRESHOLD
+	return matches_together(name_a, name_b) >= Balance.match_balance.synergy_threshold
 
 
 # ---------------------------------------------------------------------------
@@ -97,8 +97,8 @@ func score_bonus_per_player(active_players: Array) -> Dictionary:
 	for pair in pairs:
 		var name_a: String = pair[0]
 		var name_b: String = pair[1]
-		per_player[name_a].append(Tuning.SYNERGY_BONUS_PER_PAIR)
-		per_player[name_b].append(Tuning.SYNERGY_BONUS_PER_PAIR)
+		per_player[name_a].append(Balance.match_balance.synergy_bonus_per_pair)
+		per_player[name_b].append(Balance.match_balance.synergy_bonus_per_pair)
 
 	# Apply diminishing returns to each player's stack of pair bonuses.
 	var result: Dictionary = {}
@@ -106,7 +106,7 @@ func score_bonus_per_player(active_players: Array) -> Dictionary:
 		var stack: Array = per_player[player_name]
 		var total: float = 0.0
 		for i in stack.size():
-			total += float(stack[i]) * pow(Tuning.SYNERGY_STACK_DIMINISH, i)
+			total += float(stack[i]) * pow(Balance.match_balance.synergy_stack_diminish, i)
 		result[player_name] = int(round(total))
 	return result
 
@@ -117,7 +117,7 @@ func score_bonus_per_player(active_players: Array) -> Dictionary:
 # ---------------------------------------------------------------------------
 func progress(name_a: String, name_b: String) -> float:
 	var n: int = matches_together(name_a, name_b)
-	return clampf(float(n) / float(Tuning.SYNERGY_THRESHOLD), 0.0, 1.0)
+	return clampf(float(n) / float(Balance.match_balance.synergy_threshold), 0.0, 1.0)
 
 
 # ---------------------------------------------------------------------------

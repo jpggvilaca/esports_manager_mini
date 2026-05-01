@@ -46,6 +46,57 @@ signal match_resolved(week_result)
 
 
 # ---------------------------------------------------------------------------
+# WEEKRESOLVER PIPELINE PHASE SIGNALS
+#
+# Emitted by GameDirector.advance_week() between WeekResolver phase calls.
+# Listeners can hook in for UI animations, audio cues, debug overlays, or
+# the smoke test's per-phase invariant checks.
+#
+# Order (one per advance_week call):
+#   bench_resolved
+#   match_context_generated
+#   match_simulated
+#   post_match_applied
+#   xp_awarded
+#   goals_checked
+#   season_rotated         (every week; signals patch flips and end-of-season resets)
+# ---------------------------------------------------------------------------
+
+# Bench actions (rest/train/study) have been applied to all benched players.
+# Payload: outcomes: Array[BenchOutcome]
+signal bench_resolved(outcomes)
+
+# Calendar lookup, opponent traits, situations, and the active patch have
+# been computed for the current week.
+# Payload: context: MatchContext
+signal match_context_generated(context)
+
+# Simulation has produced the match outcome. Study charges have been
+# consumed at this point. WeekResult fields populated with match data;
+# post-match side effects (stamina cost, XP, morale) NOT yet applied.
+# Payload: outcome: MatchOutcome
+signal match_simulated(outcome)
+
+# Post-match side effects applied: streaks, stamina cost, morale.
+# League record updated. Synergy ledger updated.
+# Payload: week_result: WeekResult
+signal post_match_applied(week_result)
+
+# XP awarded to all active players, level-ups collected.
+# Payload: level_ups: Array (entries from LevelSystem)
+signal xp_awarded(level_ups)
+
+# Season + quarter goal manager updated, quarter bonuses consumed.
+# Payload: week_result: WeekResult
+signal goals_checked(week_result)
+
+# Week counter incremented. If this was week 24, season reset has run
+# (new SeasonGoalManager, league reset, market reset).
+# Payload: new_week: int (the absolute week number AFTER incrementing)
+signal season_rotated(new_week)
+
+
+# ---------------------------------------------------------------------------
 # ROSTER / SQUAD CHANGES
 # ---------------------------------------------------------------------------
 

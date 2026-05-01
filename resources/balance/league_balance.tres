@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LeagueBalance" format=3 uid="uid://d0xs1bbdjqme3"]
+
+[ext_resource type="Script" uid="uid://dtrel3tgqf87h" path="res://resources/balance/league_balance.gd" id="1_ydmec"]
+
+[resource]
+script = ExtResource("1_ydmec")
+npc_strength_min = 30
+npc_strength_max = 80
+npc_season_ramp = 5
+npc_season_ramp_cap = 30
+npc_strength_hard_cap = 88
+league_top_morale_bonus = 15
+league_top_xp_bonus = 100
+league_bot_morale_penalty = 10
+metadata/_custom_type_script = "uid://dtrel3tgqf87h"

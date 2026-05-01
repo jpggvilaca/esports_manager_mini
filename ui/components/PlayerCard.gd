@@ -48,8 +48,7 @@ func setup(
 	player:     Player,
 	is_active:  bool,
 	match_type: String,
-	portrait:   Texture2D = null,
-	_game:      GameManager = null
+	portrait:   Texture2D = null
 ) -> void:
 	# Panel style — swap between the two scene sub-resources
 	add_theme_stylebox_override("panel", _style_active if is_active else _style_bench)
@@ -107,7 +106,7 @@ func _add_active_extras(player: Player, match_type: String) -> void:
 		_add_label(voice, COLOR_VOICE, FONT_VOICE, true)
 	if player.form_label != "":
 		_add_label(player.form_label, Color(1, 1, 1), FONT_FORM)
-	if player.burnout >= Tuning.BURNOUT_WARNING_THRESHOLD:
+	if player.burnout >= Balance.match_balance.burnout_warning_threshold:
 		_add_label("🔥 Burnout warning", COLOR_WARN, FONT_WARN)
 	# Carrying study charges into the match — highlight it.
 	if player.study_charges > 0:
@@ -118,7 +117,7 @@ func _add_active_extras(player: Player, match_type: String) -> void:
 func _add_bench_extras(player: Player) -> void:
 	if player.form_label != "":
 		_add_label(player.form_label, Color(1, 1, 1), FONT_FORM)
-	if player.burnout >= Tuning.BURNOUT_WARNING_THRESHOLD:
+	if player.burnout >= Balance.match_balance.burnout_warning_threshold:
 		_add_label("🔥 Burnout warning", COLOR_WARN, FONT_WARN)
 	var action_label: String = BENCH_ACTION_LABEL.get(player.bench_action, "💤 Resting")
 	if player.bench_action == "study" and player.study_charges > 0:

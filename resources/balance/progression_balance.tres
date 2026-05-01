@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ProgressionBalance" format=3 uid="uid://baypcmqiylwod"]
+
+[ext_resource type="Script" uid="uid://cr3sf1omte6ph" path="res://resources/balance/progression_balance.gd" id="1_w3ujh"]
+
+[resource]
+script = ExtResource("1_w3ujh")
+quarter_bonus_morale = 10
+quarter_bonus_xp = 50
+metadata/_custom_type_script = "uid://cr3sf1omte6ph"

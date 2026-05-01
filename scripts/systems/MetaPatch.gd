@@ -49,7 +49,7 @@ const PATCHABLE_TRAITS: Array[String] = [
 #   }
 # ---------------------------------------------------------------------------
 static func get_patch(absolute_week: int) -> Dictionary:
-	var cycle: int = max(Tuning.PATCH_CYCLE_WEEKS, 1)
+	var cycle: int = max(Balance.match_balance.patch_cycle_weeks, 1)
 	var patch_index: int = (absolute_week - 1) / cycle
 	var starts_week:  int = patch_index * cycle + 1
 	var ends_week:    int = starts_week + cycle - 1
@@ -84,9 +84,9 @@ static func get_patch(absolute_week: int) -> Dictionary:
 static func multiplier_for(trait_key: String, absolute_week: int) -> float:
 	var patch: Dictionary = get_patch(absolute_week)
 	if trait_key == patch["buffed"]:
-		return 1.0 + Tuning.PATCH_BUFF_PCT
+		return 1.0 + Balance.match_balance.patch_buff_pct
 	if trait_key == patch["nerfed"]:
-		return 1.0 - Tuning.PATCH_NERF_PCT
+		return 1.0 - Balance.match_balance.patch_nerf_pct
 	return 1.0
 
 
@@ -95,7 +95,7 @@ static func multiplier_for(trait_key: String, absolute_week: int) -> float:
 # a new patch cycle. Useful for showing a "Patch Notes" banner on the hub.
 # ---------------------------------------------------------------------------
 static func is_patch_week_one(absolute_week: int) -> bool:
-	var cycle: int = max(Tuning.PATCH_CYCLE_WEEKS, 1)
+	var cycle: int = max(Balance.match_balance.patch_cycle_weeks, 1)
 	return (absolute_week - 1) % cycle == 0
 
 
@@ -104,6 +104,6 @@ static func is_patch_week_one(absolute_week: int) -> bool:
 # the player prepare a roster pivot in advance.
 # ---------------------------------------------------------------------------
 static func next_patch(absolute_week: int) -> Dictionary:
-	var cycle: int = max(Tuning.PATCH_CYCLE_WEEKS, 1)
+	var cycle: int = max(Balance.match_balance.patch_cycle_weeks, 1)
 	var next_week: int = ((absolute_week - 1) / cycle + 1) * cycle + 1
 	return get_patch(next_week)
